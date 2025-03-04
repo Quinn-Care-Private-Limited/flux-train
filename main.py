@@ -25,7 +25,6 @@ class TrainRequest(BaseModel):
 
 @app.post("/train")
 def train_lora(request: TrainRequest):
-    run_id = str(uuid.uuid4())  # Unique ID for this training session
     output_dir = os.path.join(OUTPUTS_DIR, request.output_name)
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(MODELS_DIR, exist_ok=True)
@@ -45,14 +44,14 @@ def train_lora(request: TrainRequest):
 
     try:
         subprocess.Popen(command, shell=True, cwd="sd-scripts", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return {"message": "Training started", "run_id": run_id}
+        return {"message": "Training started"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/status/{run_id}")
-def get_training_status(run_id: str):
-    log_file = os.path.join(OUTPUTS_DIR, run_id, "train.log")
+@app.get("/status/{name}")
+def get_training_status(name: str):
+    log_file = os.path.join(OUTPUTS_DIR, name, "train.log")
     if os.path.exists(log_file):
         with open(log_file, "r") as f:
-            return {"run_id": run_id, "status": f.readlines()[-10:]}  # Return last 10 log lines
-    return {"run_id": run_id, "status": "Not found or still running"}
+            return {"name": name, "status": f.readlines()[-10:]}  # Return last 10 log lines
+    return {"name": name, "status": "Not found or still running"}
