@@ -1,8 +1,9 @@
 version: "3.8"
 services:
-  flux-lora-api:
-    build: .
-    container_name: flux-lora-api
+  flux-train:
+    build: ./
+    image: quinninc/flux-train:1.0.0
+    container_name: flux-train
     restart: always
     volumes:
       - ${OUTPUTS_DIR}:/app/sd-scripts/outputs
