@@ -7,8 +7,9 @@ import os
 app = FastAPI()
 
 # Directory to save training runs
-TRAINING_DIR = "outputs"
-os.makedirs(TRAINING_DIR, exist_ok=True)
+OUTPUTS_DIR = "outputs"
+MODELS_DIR = "models"
+os.makedirs(OUTPUTS_DIR, exist_ok=True)
 
 class TrainRequest(BaseModel):
     pretrained_model: str
@@ -25,12 +26,13 @@ class TrainRequest(BaseModel):
 @app.post("/train")
 def train_lora(request: TrainRequest):
     run_id = str(uuid.uuid4())  # Unique ID for this training session
-    output_dir = os.path.join(TRAINING_DIR, request.output_name)
+    output_dir = os.path.join(OUTPUTS_DIR, request.output_name)
     os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(MODELS_DIR, exist_ok=True)
 
     command = f"""
     accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 flux_train_network.py 
-    --pretrained_model_name_or_path {request.pretrained_model} --clip_l {request.clip_l} --t5xxl {request.t5xxl} 
+    --pretrained_model_name_or_path {MODELS_DIR}/{request.pretrained_model} --clip_l {MODELS_DIR}/{request.clip_l} --t5xxl {MODELS_DIR}/{request.t5xxl} 
     --ae {request.ae} --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers 
     --max_data_loader_n_workers 2 --seed 42 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 
     --network_module networks.lora_flux --network_dim {request.network_dim} --network_train_unet_only 
@@ -49,7 +51,7 @@ def train_lora(request: TrainRequest):
 
 @app.get("/status/{run_id}")
 def get_training_status(run_id: str):
-    log_file = os.path.join(TRAINING_DIR, run_id, "train.log")
+    log_file = os.path.join(OUTPUTS_DIR, run_id, "train.log")
     if os.path.exists(log_file):
         with open(log_file, "r") as f:
             return {"run_id": run_id, "status": f.readlines()[-10:]}  # Return last 10 log lines
