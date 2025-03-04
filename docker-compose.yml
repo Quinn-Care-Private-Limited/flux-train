@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  flux-lora-api:
+    build: .
+    container_name: flux-lora-api
+    restart: always
+    volumes:
+      - ${TRAINING_DIR}:/app/outputs
+    network_mode: "host"
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
