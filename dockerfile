@@ -23,6 +23,7 @@ RUN git clone -b sd3 https://github.com/kohya-ss/sd-scripts.git
 RUN cd sd-scripts/ && pip install -r requirements.txt && cd .. && pip install -r requirements.txt
 RUN pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
+ENV PORT=80
 
 # Start FastAPI server
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", $PORT]
