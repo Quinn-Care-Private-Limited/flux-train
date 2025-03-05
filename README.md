@@ -8,13 +8,11 @@
 docker pull quinninc/flux-train:1.0.0
 ```
 
-### Create a `.env` file
+### Add environment variables
 
 ```bash
 nano .env
 ```
-
-### Add environment variables
 
 - PORT - Port to server
 - MOUNT_PATH - Volume mount path (optional, dev only)
