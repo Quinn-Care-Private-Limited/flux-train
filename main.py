@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import subprocess
+import uuid
 import os
 
 app = FastAPI()
@@ -9,6 +10,7 @@ FS_PATH = os.getenv("FS_PATH")
 BASE_DIR = os.path.join(FS_PATH, "flux_train")
 # Directory to save training runs
 OUTPUTS_DIR = os.path.join(BASE_DIR, "outputs")
+LOGS_DIR = os.path.join(BASE_DIR, "logs")
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 DATASETS_DIR = os.path.join(BASE_DIR, "datasets")
 
@@ -70,10 +72,11 @@ class TrainRequest(BaseModel):
 def train_lora(request: TrainRequest):
     output_dir = os.path.join(OUTPUTS_DIR, request.output_name)
     os.makedirs(output_dir, exist_ok=True)
+    run_id = str(uuid.uuid4())
 
     command = f"""accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 sd-scripts/flux_train_network.py \
 --pretrained_model_name_or_path {MODELS_DIR}/{request.pretrained_model} --clip_l {MODELS_DIR}/{request.clip_l} --t5xxl {MODELS_DIR}/{request.t5xxl} \
---ae {request.ae} --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
+--ae {MODELS_DIR}/{request.ae} --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
 --max_data_loader_n_workers 2 --seed 42 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
 --network_module networks.lora_flux --network_dim {request.network_dim} --network_train_unet_only \
 --optimizer_type adamw8bit --learning_rate {request.learning_rate} \
@@ -82,7 +85,7 @@ def train_lora(request: TrainRequest):
 --output_dir {output_dir} --output_name {request.output_name} \
 --timestep_sampling shift --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2 {"--enable_bucket" if request.enable_bucket else ""} {"--full_bf16" if request.full_bf16 else ""}
 """
-    log_file = os.path.join(output_dir, "train.log")
+    log_file = os.path.join(LOGS_DIR, f"${run_id}_train.log")
 
     try:
         print("Running command:")
@@ -92,14 +95,14 @@ def train_lora(request: TrainRequest):
             if(process.stderr):
                 raise HTTPException(status_code=500, detail=str("Error starting training"))     
         
-        return {"message": "Training started", "log_file": log_file}
+        return {"message": "Training started", "run_id": run_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/status/{name}")
-def get_training_status(name: str):
-    log_file = os.path.join(OUTPUTS_DIR, name, "train.log")
+@app.get("/status/{run_id}")
+def get_training_status(run_id: str):
+    log_file = os.path.join(LOGS_DIR, f"{run_id}_train.log")
     if os.path.exists(log_file):
         with open(log_file, "r") as f:
-            return {"name": name, "status": f.readlines()[-10:]}  # Return last 10 log lines
-    return {"name": name, "status": "Not found or still running"}
+            return {"run_id": run_id, "status": f.readlines()[-10:]}  # Return last 10 log lines
+    return {"run_id": run_id, "status": "Not found or still running"}
