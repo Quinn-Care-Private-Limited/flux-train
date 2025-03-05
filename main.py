@@ -113,7 +113,7 @@ def get_training_status(run_id: str):
 
 
 # Load Florence-2 model and processor
-MODEL_PATH = "microsoft/Florence-2-large"
+MODEL_PATH = f"{MODELS_DIR}/florence2"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16
 
@@ -125,10 +125,8 @@ def caption_images(request: CaptionRequest):
     if not os.path.exists(request.image_dir):
         raise HTTPException(status_code=400, detail="Image directory not found")
     
-    model = AutoModelForCausalLM.from_pretrained(
-    "multimodalart/Florence-2-large-no-flash-attn", torch_dtype=torch_dtype, trust_remote_code=True
-    ).to(device)
-    processor = AutoProcessor.from_pretrained("multimodalart/Florence-2-large-no-flash-attn", trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, torch_dtype=torch_dtype, trust_remote_code=True).to(device)
+    processor = AutoProcessor.from_pretrained(MODEL_PATH, trust_remote_code=True)
 
     dataset_dir = os.path.join(DATASETS_DIR, request.output_name)
     captions = {}
