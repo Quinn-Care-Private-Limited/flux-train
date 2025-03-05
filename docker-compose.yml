@@ -4,11 +4,8 @@ services:
     image: quinninc/flux-train:1.0.0
     container_name: flux-train
     restart: always
-    volumes:
-      - ${OUTPUTS_DIR}:/app/outputs
-      - ${MODELS_DIR}:/app/models
     network_mode: "host"
     runtime: nvidia
+    env_file: .env
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
-      - PORT=3000

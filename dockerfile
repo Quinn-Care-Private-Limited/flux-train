@@ -7,8 +7,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
   ### Ensures output from python is printed immediately to the terminal without buffering
   PYTHONUNBUFFERED=1 
 
+ENV PORT=80
+ENV FS_PATH=/app/fs/flux_train
+
 # Install dependencies
-RUN apt-get update && apt-get install -y python3 python3-pip git wget && \
+RUN apt-get update && apt-get install -y python3 python3-pip git wget tini nfs-common libtool && \
   pip install --upgrade pip
 
 ### Clean up to reduce image size
@@ -18,12 +21,13 @@ RUN apt-get autoremove -y \
 
 WORKDIR /app
 # ADD files
-ADD main.py requirements.txt ./
+ADD main.py requirements.txt run.sh ./
 RUN git clone -b sd3 https://github.com/kohya-ss/sd-scripts.git
 RUN cd sd-scripts/ && pip install -r requirements.txt && cd .. && pip install -r requirements.txt
 RUN pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-ENV PORT=80
+RUN chmod +x run.sh
 
 # Start FastAPI server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", $PORT]
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/app/run.sh"]

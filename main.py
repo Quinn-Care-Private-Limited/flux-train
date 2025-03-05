@@ -5,10 +5,13 @@ import os
 
 app = FastAPI()
 
+FS_PATH = os.getenv("FS_PATH")
 # Directory to save training runs
-OUTPUTS_DIR = "outputs"
-MODELS_DIR = "models"
+OUTPUTS_DIR = os.path.join(FS_PATH, "outputs")
+MODELS_DIR = os.path.join(FS_PATH, "models")
+
 os.makedirs(OUTPUTS_DIR, exist_ok=True)
+os.makedirs(MODELS_DIR, exist_ok=True)
 
 class TrainRequest(BaseModel):
     dataset_config: str
@@ -28,7 +31,6 @@ class TrainRequest(BaseModel):
 def train_lora(request: TrainRequest):
     output_dir = os.path.join(OUTPUTS_DIR, request.output_name)
     os.makedirs(output_dir, exist_ok=True)
-    os.makedirs(MODELS_DIR, exist_ok=True)
 
     command = f"""
     accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 sd_scripts/flux_train_network.py 
