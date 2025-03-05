@@ -6,11 +6,13 @@ import os
 app = FastAPI()
 
 FS_PATH = os.getenv("FS_PATH")
+BASE_DIR = os.path.join(FS_PATH, "flux_train")
 # Directory to save training runs
-OUTPUTS_DIR = os.path.join(FS_PATH, "outputs")
-MODELS_DIR = os.path.join(FS_PATH, "models")
-DATASETS_DIR = os.path.join(FS_PATH, "datasets")
+OUTPUTS_DIR = os.path.join(BASE_DIR, "outputs")
+MODELS_DIR = os.path.join(BASE_DIR, "models")
+DATASETS_DIR = os.path.join(BASE_DIR, "datasets")
 
+os.makedirs(BASE_DIR, exist_ok=True)
 os.makedirs(OUTPUTS_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
 os.makedirs(DATASETS_DIR, exist_ok=True)

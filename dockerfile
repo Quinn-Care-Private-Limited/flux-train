@@ -10,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
   PYTHONUNBUFFERED=1 
 
 ENV PORT=80
-ENV FS_PATH=/app/fs/flux_train
+ENV FS_PATH=/mnt/fs
 
 # Install dependencies
 RUN apt-get update && apt-get install -y python3 python3-pip git wget tini nfs-common libtool && \
@@ -23,11 +23,12 @@ RUN apt-get autoremove -y \
 
 WORKDIR /app
 # ADD files
-ADD main.py requirements.txt run.sh ./
+COPY requirements.txt ./
 RUN git clone -b sd3 https://github.com/kohya-ss/sd-scripts.git
 RUN cd sd-scripts/ && pip install -r requirements.txt && cd .. && pip install -r requirements.txt
 RUN pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
+COPY main.py run.sh ./
 RUN chmod +x run.sh
 
 # Start FastAPI server
