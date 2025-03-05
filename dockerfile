@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.6.2-cudnn-runtime-ubuntu22.04
+FROM nvidia/cuda:12.4.1-base-ubuntu22.04
 
 USER root
 
@@ -13,7 +13,7 @@ ENV PORT=80
 ENV FS_PATH=/mnt/fs
 
 # Install dependencies
-RUN apt-get update && apt-get install -y python3 python3-pip git wget tini nfs-common libtool && \
+RUN apt-get update && apt-get install -y python3-dev python3-pip git wget tini nfs-common libtool build-essential && \
   pip install --upgrade pip
 
 ### Clean up to reduce image size
@@ -24,9 +24,9 @@ RUN apt-get autoremove -y \
 WORKDIR /app
 # ADD files
 COPY requirements.txt ./
-RUN git clone -b sd3 https://github.com/kohya-ss/sd-scripts.git
-RUN cd sd-scripts/ && pip install -r requirements.txt && cd .. && pip install -r requirements.txt
-RUN pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+RUN git clone -b sd3 https://github.com/kohya-ss/sd-scripts.git && cd sd-scripts/ && pip install --no-cache-dir -r requirements.txt && 
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
 COPY main.py run.sh ./
 RUN chmod +x run.sh
