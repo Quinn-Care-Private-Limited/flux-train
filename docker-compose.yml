@@ -5,8 +5,8 @@ services:
     container_name: flux-train
     restart: always
     volumes:
-      - ${OUTPUTS_DIR}:/app/sd-scripts/outputs
-      - ${MODELS_DIR}:/app/sd-scripts/models
+      - ${OUTPUTS_DIR}:/app/outputs
+      - ${MODELS_DIR}:/app/models
     network_mode: "host"
     runtime: nvidia
     environment:
