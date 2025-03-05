@@ -71,7 +71,7 @@ def train_lora(request: TrainRequest):
     output_dir = os.path.join(OUTPUTS_DIR, request.output_name)
     os.makedirs(output_dir, exist_ok=True)
 
-    command = f"""accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 sd_scripts/flux_train_network.py \
+    command = f"""accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 sd-scripts/flux_train_network.py \
 --pretrained_model_name_or_path {MODELS_DIR}/{request.pretrained_model} --clip_l {MODELS_DIR}/{request.clip_l} --t5xxl {MODELS_DIR}/{request.t5xxl} \
 --ae {request.ae} --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
 --max_data_loader_n_workers 2 --seed 42 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
