@@ -16,6 +16,7 @@ DATASETS_DIR = os.path.join(BASE_DIR, "datasets")
 
 os.makedirs(BASE_DIR, exist_ok=True)
 os.makedirs(OUTPUTS_DIR, exist_ok=True)
+os.makedirs(LOGS_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
 os.makedirs(DATASETS_DIR, exist_ok=True)
 
@@ -85,7 +86,7 @@ def train_lora(request: TrainRequest):
 --output_dir {output_dir} --output_name {request.output_name} \
 --timestep_sampling shift --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2 {"--enable_bucket" if request.enable_bucket else ""} {"--full_bf16" if request.full_bf16 else ""}
 """
-    log_file = os.path.join(LOGS_DIR, f"${run_id}_train.log")
+    log_file = os.path.join(LOGS_DIR, f"{run_id}_train.log")
 
     try:
         print("Running command:")
