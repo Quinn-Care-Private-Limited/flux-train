@@ -4,3 +4,4 @@ pydantic
 requests
 opencv-python-headless
 transformers
+timm
