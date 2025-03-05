@@ -82,12 +82,15 @@ def train_lora(request: TrainRequest):
 --output_dir {output_dir} --output_name {request.output_name} \
 --timestep_sampling shift --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2 {"--enable_bucket" if request.enable_bucket else ""} {"--full_bf16" if request.full_bf16 else ""}
 """
+    log_file = os.path.join(output_dir, "train.log")
 
     try:
-        print("Running command")
-        print(command)
-        subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return {"message": "Training started"}
+        with open(log_file, "w") as f:
+            process = subprocess.Popen(command, shell=True, stdout=f, stderr=f, text=True)
+            if(process.stderr):
+                raise HTTPException(status_code=500, detail=str("Error starting training"))     
+        
+        return {"message": "Training started", "log_file": log_file}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
