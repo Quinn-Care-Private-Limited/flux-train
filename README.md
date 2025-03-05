@@ -162,7 +162,16 @@ This API provides a comprehensive set of endpoints for downloading images, gener
 **Request Model:** `TrainRequest`
 
 - `output_name`: Name for the trained model
-- Configurable model and training parameters like pretrained models, learning rate, epochs
+- `max_train_epochs`: No of epochs to train (optional)
+- `learning_rate`: Learning rate of the training (optional)
+- `network_dim`: Network dimension of lora (optional)
+- `save_every_n_epochs`: Save models at N epochs (optional)
+- `pretrained_model`: Relative path of flux model to NFS_SHARE (optional)
+- `clip_l`: Relative path of Clip large model to NFS_SHARE (optional)
+- `t5xxl`: Relative path of T5xxl model to NFS_SHARE (optional)
+- `ae`: Relative path of ae model to NFS_SHARE (optional)
+- `enable_bucket`: Enable or Disable image bucket for multi aspect ratio dataset (optional)
+- `full_bf16`: Enable or Disable full bf16 training (optional)
 
 **Features:**
 
@@ -177,7 +186,15 @@ This API provides a comprehensive set of endpoints for downloading images, gener
 {
     "output_name": "my_model",
     "max_train_epochs": 5,
-    "learning_rate": 5e-4
+    "learning_rate": 8e-4
+    "pretrained_model": 'flux1-dev.sft'
+    "clip_l": 'clip_l.safetensors'
+    "t5xxl": 't5xxl_fp16.safetensors'
+    "ae": 'ae.sft'
+    "network_dim": 4
+    "save_every_n_epochs": 1
+    "enable_bucket": true
+    "full_bf16": false
 }
 ```
 
