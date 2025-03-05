@@ -1,8 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from transformers import AutoProcessor, AutoModelForCausalLM
+from PIL import Image
 import subprocess
 import uuid
 import os
+import torch
 
 app = FastAPI()
 
@@ -107,3 +110,44 @@ def get_training_status(run_id: str):
         with open(log_file, "r") as f:
             return {"run_id": run_id, "status": f.readlines()[-10:]}  # Return last 10 log lines
     return {"run_id": run_id, "status": "Not found or still running"}
+
+
+# Load Florence-2 model and processor
+MODEL_PATH = f"{MODELS_DIR}/florence-2"
+device = "cuda" if torch.cuda.is_available() else "cpu"
+processor = AutoProcessor.from_pretrained(MODEL_PATH, local_files_only=True)
+model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, local_files_only=True).to(device)
+
+class CaptionRequest(BaseModel):
+    output_name: str  # Path to directory containing images
+
+@app.post("/caption-images")
+def caption_images(request: CaptionRequest):
+    if not os.path.exists(request.image_dir):
+        raise HTTPException(status_code=400, detail="Image directory not found")
+
+    dataset_dir = os.path.join(DATASETS_DIR, request.output_name)
+    captions = {}
+    for filename in os.listdir(request.image_dir):
+        if filename.lower().endswith(("jpg", "jpeg", "png")):
+            image_path = os.path.join(dataset_dir, filename)
+            caption_path = os.path.splitext(image_path)[0] + ".txt"  # Save as .txt with same name
+
+            try:
+                # Load image
+                image = Image.open(image_path).convert("RGB")
+
+                # Process image and generate caption
+                inputs = processor(images=image, return_tensors="pt").to(device)
+                outputs = model.generate(**inputs)
+                caption = processor.batch_decode(outputs, skip_special_tokens=True)[0]
+
+                # Save caption to a .txt file
+                with open(caption_path, "w") as f:
+                    f.write(caption)
+
+                captions[filename] = caption
+            except Exception as e:
+                captions[filename] = f"Error: {str(e)}"
+
+    return {"message": "Captions generated and saved", "captions": captions}
