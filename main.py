@@ -91,7 +91,8 @@ def caption_images(request: CaptionRequest):
                 # Process image and generate caption
                 inputs = processor(text=request.prompt, images=image, return_tensors="pt").to(device, torch_dtype)
                 outputs = model.generate(**inputs, max_new_tokens=1024, num_beams=3)
-                caption = processor.batch_decode(outputs, skip_special_tokens=True)[0]
+                caption: str = processor.batch_decode(outputs, skip_special_tokens=True)[0]
+                caption = caption.replace("The image shows ", "")
                 caption = f"{request.trigger_word}, {caption}"
 
                 # Save caption to a .txt file
