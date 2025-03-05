@@ -115,8 +115,7 @@ def get_training_status(run_id: str):
 # Load Florence-2 model and processor
 MODEL_PATH = "microsoft/Florence-2-large"
 device = "cuda" if torch.cuda.is_available() else "cpu"
-processor = AutoProcessor.from_pretrained(MODEL_PATH, trust_remote_code=True)
-model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, trust_remote_code=True).to(device)
+torch_dtype = torch.float16
 
 class CaptionRequest(BaseModel):
     output_name: str  # Path to directory containing images
@@ -125,6 +124,11 @@ class CaptionRequest(BaseModel):
 def caption_images(request: CaptionRequest):
     if not os.path.exists(request.image_dir):
         raise HTTPException(status_code=400, detail="Image directory not found")
+    
+    model = AutoModelForCausalLM.from_pretrained(
+    "multimodalart/Florence-2-large-no-flash-attn", torch_dtype=torch_dtype, trust_remote_code=True
+    ).to(device)
+    processor = AutoProcessor.from_pretrained("multimodalart/Florence-2-large-no-flash-attn", trust_remote_code=True)
 
     dataset_dir = os.path.join(DATASETS_DIR, request.output_name)
     captions = {}
@@ -138,7 +142,7 @@ def caption_images(request: CaptionRequest):
                 image = Image.open(image_path).convert("RGB")
 
                 # Process image and generate caption
-                inputs = processor(images=image, return_tensors="pt").to(device)
+                inputs = processor(images=image, return_tensors="pt").to(device, torch_dtype)
                 outputs = model.generate(**inputs)
                 caption = processor.batch_decode(outputs, skip_special_tokens=True)[0]
 
