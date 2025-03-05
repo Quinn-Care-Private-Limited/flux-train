@@ -20,7 +20,7 @@ WORKDIR /app
 # ADD files
 ADD main.py requirements.txt ./
 RUN git clone -b sd3 https://github.com/kohya-ss/sd-scripts.git
-RUN cd sd-scripts/ && pip install -r requirements && cd .. && pip install -r requirements
+RUN cd sd-scripts/ && pip install -r requirement.txt && cd .. && pip install -r requirements.txt
 RUN pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 
