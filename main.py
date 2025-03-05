@@ -31,21 +31,21 @@ def create_dataset_config(config: DatasetConfig):
     config_path = os.path.join(DATASETS_DIR, f"{config.output_name}.toml")
     
     toml_content = f"""[general]
-    shuffle_caption = {str(config.shuffle_caption).lower()}
-    caption_extension = '{config.caption_extension}'
-    keep_tokens = {config.keep_tokens}
+shuffle_caption = {str(config.shuffle_caption).lower()}
+caption_extension = '{config.caption_extension}'
+keep_tokens = {config.keep_tokens}
 
-    [[datasets]]
-    resolution = {config.resolution}
-    batch_size = {config.batch_size}
-    keep_tokens = {config.keep_tokens}
+[[datasets]]
+resolution = {config.resolution}
+batch_size = {config.batch_size}
+keep_tokens = {config.keep_tokens}
 
-    [[datasets.subsets]]
-    image_dir = '{DATASETS_DIR}/{config.output_name}'
-    class_tokens = '{config.output_name}'
-    num_repeats = {config.num_repeats}
-    """
-
+[[datasets.subsets]]
+image_dir = '{DATASETS_DIR}/{config.output_name}'
+class_tokens = '{config.output_name}'
+num_repeats = {config.num_repeats}
+"""
+    
     try:
         with open(config_path, "w") as f:
             f.write(toml_content)
@@ -85,6 +85,8 @@ def train_lora(request: TrainRequest):
     """
 
     try:
+        print("Running command")
+        print(command)
         subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return {"message": "Training started"}
     except Exception as e:
