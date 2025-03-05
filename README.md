@@ -56,11 +56,11 @@ docker compose up -f docker-compose.dev.yml
 
 ### Download models
 
-- flux1-dev.sft - https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/flux1-dev.safetensors
-- clip_l.safetensors - https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors
-- t5xxl_fp16.safetensors - https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors
-- ae.sft - https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/ae.safetensors
-- florence2 - https://huggingface.co/multimodalart/Florence-2-large-no-flash-attn
+- [flux1-dev.sft](https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/flux1-dev.safetensors)
+- [clip_l.safetensors](https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors)
+- [t5xxl_fp16.safetensors](https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors)
+- [ae.sft](https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/ae.safetensors)
+- [florence2](https://huggingface.co/multimodalart/Florence-2-large-no-flash-attn)
 
 ```bash
 cd $FS_SHARE_PATH/flux_train/models
