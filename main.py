@@ -122,15 +122,15 @@ class CaptionRequest(BaseModel):
 
 @app.post("/caption-images")
 def caption_images(request: CaptionRequest):
-    if not os.path.exists(request.image_dir):
+    dataset_dir = os.path.join(DATASETS_DIR, request.output_name)
+    if not os.path.exists(dataset_dir):
         raise HTTPException(status_code=400, detail="Image directory not found")
     
     model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, torch_dtype=torch_dtype, trust_remote_code=True).to(device)
     processor = AutoProcessor.from_pretrained(MODEL_PATH, trust_remote_code=True)
 
-    dataset_dir = os.path.join(DATASETS_DIR, request.output_name)
     captions = {}
-    for filename in os.listdir(request.image_dir):
+    for filename in os.listdir(dataset_dir):
         if filename.lower().endswith(("jpg", "jpeg", "png")):
             image_path = os.path.join(dataset_dir, filename)
             caption_path = os.path.splitext(image_path)[0] + ".txt"  # Save as .txt with same name
