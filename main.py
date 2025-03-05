@@ -15,6 +15,42 @@ os.makedirs(OUTPUTS_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
 os.makedirs(DATASETS_DIR, exist_ok=True)
 
+class DatasetConfig(BaseModel):
+    output_name: str
+    num_repeats: int = 10
+    resolution: int = 1024
+    batch_size: int = 1
+    shuffle_caption: bool = False
+    caption_extension: str = ".txt"
+    keep_tokens: int = 1
+
+@app.post("/create-dataset-config")
+def create_dataset_config(config: DatasetConfig):
+    config_path = os.path.join(DATASETS_DIR, f"{config.output_name}.toml")
+    
+    toml_content = f"""[general]
+    shuffle_caption = {str(config.shuffle_caption).lower()}
+    caption_extension = '{config.caption_extension}'
+    keep_tokens = {config.keep_tokens}
+
+    [[datasets]]
+    resolution = {config.resolution}
+    batch_size = {config.batch_size}
+    keep_tokens = {config.keep_tokens}
+
+    [[datasets.subsets]]
+    image_dir = '{DATASETS_DIR}/{config.output_name}'
+    class_tokens = '{config.output_name}'
+    num_repeats = {config.num_repeats}
+    """
+
+    try:
+        with open(config_path, "w") as f:
+            f.write(toml_content)
+        return {"message": "Dataset config created", "path": config_path}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 class TrainRequest(BaseModel):
     output_name: str
     pretrained_model: str = 'flux1-dev.sft'
