@@ -113,7 +113,7 @@ def get_training_status(run_id: str):
 
 
 # Load Florence-2 model and processor
-MODEL_PATH = f"{MODELS_DIR}/florence-2"
+MODEL_PATH = f"{MODELS_DIR}/florence2"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 processor = AutoProcessor.from_pretrained(MODEL_PATH, local_files_only=True)
 model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, local_files_only=True).to(device)
