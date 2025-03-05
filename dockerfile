@@ -27,7 +27,7 @@ RUN git clone -b sd3 https://github.com/kohya-ss/sd-scripts.git && cd sd-scripts
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+RUN pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 COPY main.py run.sh ./
 RUN chmod +x run.sh
