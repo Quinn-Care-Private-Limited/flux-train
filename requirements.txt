@@ -3,5 +3,3 @@ uvicorn
 pydantic
 requests
 opencv-python-headless
-timm
-flash_attn
