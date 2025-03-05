@@ -22,9 +22,10 @@ RUN apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/* 
 
 WORKDIR /app
-# ADD files
-COPY requirements.txt ./
+
 RUN git clone -b sd3 https://github.com/kohya-ss/sd-scripts.git && cd sd-scripts/ && pip install --no-cache-dir -r requirements.txt
+
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
