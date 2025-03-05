@@ -60,6 +60,7 @@ def download_images(request: DownloadRequest):
 
 class CaptionRequest(BaseModel):
     output_name: str  # Path to directory containing images
+    trigger_word: str
     prompt: str = "Describe this image in detail."  # Default prompt
 
 @app.post("/caption-images")
@@ -91,6 +92,7 @@ def caption_images(request: CaptionRequest):
                 inputs = processor(text=request.prompt, images=image, return_tensors="pt").to(device, torch_dtype)
                 outputs = model.generate(**inputs, max_new_tokens=1024, num_beams=3)
                 caption = processor.batch_decode(outputs, skip_special_tokens=True)[0]
+                caption = f"{request.trigger_word}, {caption}"
 
                 # Save caption to a .txt file
                 with open(caption_path, "w") as f:
@@ -100,10 +102,17 @@ def caption_images(request: CaptionRequest):
             except Exception as e:
                 captions[filename] = f"Error: {str(e)}"
 
+    model.to("cpu")
+    del model
+    del processor
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
     return {"message": "Captions generated and saved", "captions": captions}
 
 class DatasetConfig(BaseModel):
     output_name: str
+    trigger_word: str
     num_repeats: int = 10
     resolution: int = 1024
     batch_size: int = 1
@@ -127,7 +136,7 @@ keep_tokens = {config.keep_tokens}
 
 [[datasets.subsets]]
 image_dir = '{DATASETS_DIR}/{config.output_name}'
-class_tokens = '{config.output_name}'
+class_tokens = '{config.trigger_word}'
 num_repeats = {config.num_repeats}
 """
     
@@ -149,7 +158,7 @@ class TrainRequest(BaseModel):
     network_dim: int = 4
     save_every_n_epochs: int = 1
     enable_bucket: bool = True
-    full_bf16: bool = True
+    full_bf16: bool = False
 
 @app.post("/train")
 def train_lora(request: TrainRequest):
