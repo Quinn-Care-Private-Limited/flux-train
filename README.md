@@ -37,6 +37,27 @@ docker compose up -f docker-compose.dev.yml
 
 This API provides a comprehensive set of endpoints for downloading images, generating captions, creating dataset configurations, and training machine learning models, specifically designed for image-based machine learning workflows.
 
+`FS_PATH` or `MOUNT_PATH` folder structure
+
+```
+flux_train/
+│── datasets/                             # Stores dataset images folder and config files
+│   ├── output_name1/
+│   ├── output_name1.toml
+│   ├── output_name2/
+│   ├── output_name2.toml
+│── outputs/                              # Stores lora outputs
+│   ├── output_name1/                     # Stores loras for output_name1
+│     ├── output_name1-0001.safetensors
+│     ├── output_name1.safetensors
+│   ├── output_name2/                     # Stores loras for output_name2
+│     ├── output_name2-0001.safetensors
+│     ├── output_name2.toml               # final lora for output_name1
+│── models/                               # Stores models
+│── logs/                                 # Stores logs
+
+```
+
 ## Endpoints
 
 ### 1. Download Images
@@ -166,10 +187,10 @@ This API provides a comprehensive set of endpoints for downloading images, gener
 - `learning_rate`: Learning rate of the training (optional)
 - `network_dim`: Network dimension of lora (optional)
 - `save_every_n_epochs`: Save models at N epochs (optional)
-- `pretrained_model`: Relative path of flux model to NFS_SHARE (optional)
-- `clip_l`: Relative path of Clip large model to NFS_SHARE (optional)
-- `t5xxl`: Relative path of T5xxl model to NFS_SHARE (optional)
-- `ae`: Relative path of ae model to NFS_SHARE (optional)
+- `pretrained_model`: Relative path of flux model to FS_SHARE_PATH/flux_train/models (optional)
+- `clip_l`: Relative path of Clip large model to FS_SHARE_PATH/flux_train/models (optional)
+- `t5xxl`: Relative path of T5xxl model to FS_SHARE_PATH/flux_train/models (optional)
+- `ae`: Relative path of ae model to FS_SHARE_PATH/flux_train/models (optional)
 - `enable_bucket`: Enable or Disable image bucket for multi aspect ratio dataset (optional)
 - `full_bf16`: Enable or Disable full bf16 training (optional)
 
