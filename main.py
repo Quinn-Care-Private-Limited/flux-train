@@ -115,8 +115,8 @@ def get_training_status(run_id: str):
 # Load Florence-2 model and processor
 MODEL_PATH = "microsoft/Florence-2-large"
 device = "cuda" if torch.cuda.is_available() else "cpu"
-processor = AutoProcessor.from_pretrained(MODEL_PATH)
-model = AutoModelForCausalLM.from_pretrained(MODEL_PATH).to(device)
+processor = AutoProcessor.from_pretrained(MODEL_PATH, trust_remote_code=True)
+model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, trust_remote_code=True).to(device)
 
 class CaptionRequest(BaseModel):
     output_name: str  # Path to directory containing images
