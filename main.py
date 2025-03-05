@@ -85,6 +85,8 @@ def train_lora(request: TrainRequest):
     log_file = os.path.join(output_dir, "train.log")
 
     try:
+        print("Running command:")
+        print(command)
         with open(log_file, "w") as f:
             process = subprocess.Popen(command, shell=True, stdout=f, stderr=f, text=True)
             if(process.stderr):
