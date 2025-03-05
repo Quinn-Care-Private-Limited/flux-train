@@ -9,12 +9,13 @@ FS_PATH = os.getenv("FS_PATH")
 # Directory to save training runs
 OUTPUTS_DIR = os.path.join(FS_PATH, "outputs")
 MODELS_DIR = os.path.join(FS_PATH, "models")
+DATASETS_DIR = os.path.join(FS_PATH, "datasets")
 
 os.makedirs(OUTPUTS_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
+os.makedirs(DATASETS_DIR, exist_ok=True)
 
 class TrainRequest(BaseModel):
-    dataset_config: str
     output_name: str
     pretrained_model: str = 'flux1-dev.sft'
     clip_l: str = 'clip_l.safetensors'
@@ -40,7 +41,7 @@ def train_lora(request: TrainRequest):
     --network_module networks.lora_flux --network_dim {request.network_dim} --network_train_unet_only 
     --optimizer_type adamw8bit --learning_rate {request.learning_rate} 
     --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base 
-    --highvram --max_train_epochs {request.max_train_epochs} --save_every_n_epochs {request.save_every_n_epochs} --dataset_config {request.dataset_config} 
+    --highvram --max_train_epochs {request.max_train_epochs} --save_every_n_epochs {request.save_every_n_epochs} --dataset_config {DATASETS_DIR}/{request.output_name}.toml 
     --output_dir {output_dir} --output_name {request.output_name} 
     --timestep_sampling shift --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2 {"--enable_bucket" if request.enable_bucket else ""} {"--full_bf16" if request.full_bf16 else ""}
     """
