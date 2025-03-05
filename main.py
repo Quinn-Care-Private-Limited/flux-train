@@ -119,6 +119,7 @@ torch_dtype = torch.float16
 
 class CaptionRequest(BaseModel):
     output_name: str  # Path to directory containing images
+    prompt: str = "Describe this image in detail."  # Default prompt
 
 @app.post("/caption-images")
 def caption_images(request: CaptionRequest):
@@ -130,6 +131,7 @@ def caption_images(request: CaptionRequest):
     processor = AutoProcessor.from_pretrained(MODEL_PATH, trust_remote_code=True)
 
     captions = {}
+
     for filename in os.listdir(dataset_dir):
         if filename.lower().endswith(("jpg", "jpeg", "png")):
             image_path = os.path.join(dataset_dir, filename)
@@ -140,8 +142,8 @@ def caption_images(request: CaptionRequest):
                 image = Image.open(image_path).convert("RGB")
 
                 # Process image and generate caption
-                inputs = processor(images=image, return_tensors="pt").to(device, torch_dtype)
-                outputs = model.generate(**inputs)
+                inputs = processor(text=request.prompt, images=image, return_tensors="pt").to(device, torch_dtype)
+                outputs = model.generate(**inputs, max_new_tokens=1024, num_beams=3)
                 caption = processor.batch_decode(outputs, skip_special_tokens=True)[0]
 
                 # Save caption to a .txt file
