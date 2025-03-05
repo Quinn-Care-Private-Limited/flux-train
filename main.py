@@ -2,10 +2,12 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from transformers import AutoProcessor, AutoModelForCausalLM
 from PIL import Image
+from io import BytesIO
 import subprocess
 import uuid
 import os
 import torch
+import requests
 
 app = FastAPI()
 
@@ -22,6 +24,83 @@ os.makedirs(OUTPUTS_DIR, exist_ok=True)
 os.makedirs(LOGS_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
 os.makedirs(DATASETS_DIR, exist_ok=True)
+
+class DownloadRequest(BaseModel):
+    urls: list[str]
+    output_name: str
+
+@app.post("/download-images")
+def download_images(request: DownloadRequest):
+    dataset_dir = os.path.join(DATASETS_DIR, request.output_name)
+    os.makedirs(dataset_dir, exist_ok=True)
+
+    saved_files = {}
+    for url in request.urls:
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()  # Raise error for bad responses
+
+            # Extract filename from URL
+            filename = os.path.basename(url.split("?")[0])  # Remove URL parameters
+            if not filename.lower().endswith(("jpg", "jpeg", "png")):
+                filename += ".jpg"  # Default to JPG if no extension
+
+            file_path = os.path.join(dataset_dir, filename)
+
+            # Save image
+            image = Image.open(BytesIO(response.content)).convert("RGB")
+            image.save(file_path, format="JPEG")  # Save as JPG format
+
+            saved_files[url] = file_path
+        except Exception as e:
+            saved_files[url] = f"Error: {str(e)}"
+
+    return {"message": "Download complete", "files": saved_files}
+
+
+class CaptionRequest(BaseModel):
+    output_name: str  # Path to directory containing images
+    prompt: str = "Describe this image in detail."  # Default prompt
+
+@app.post("/caption-images")
+def caption_images(request: CaptionRequest):
+    # Load Florence-2 model and processor
+    MODEL_PATH = f"{MODELS_DIR}/florence2"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    torch_dtype = torch.float16
+
+    dataset_dir = os.path.join(DATASETS_DIR, request.output_name)
+    if not os.path.exists(dataset_dir):
+        raise HTTPException(status_code=400, detail="Image directory not found")
+    
+    model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, torch_dtype=torch_dtype, trust_remote_code=True).to(device)
+    processor = AutoProcessor.from_pretrained(MODEL_PATH, trust_remote_code=True)
+
+    captions = {}
+
+    for filename in os.listdir(dataset_dir):
+        if filename.lower().endswith(("jpg", "jpeg", "png")):
+            image_path = os.path.join(dataset_dir, filename)
+            caption_path = os.path.splitext(image_path)[0] + ".txt"  # Save as .txt with same name
+
+            try:
+                # Load image
+                image = Image.open(image_path).convert("RGB")
+
+                # Process image and generate caption
+                inputs = processor(text=request.prompt, images=image, return_tensors="pt").to(device, torch_dtype)
+                outputs = model.generate(**inputs, max_new_tokens=1024, num_beams=3)
+                caption = processor.batch_decode(outputs, skip_special_tokens=True)[0]
+
+                # Save caption to a .txt file
+                with open(caption_path, "w") as f:
+                    f.write(caption)
+
+                captions[filename] = caption
+            except Exception as e:
+                captions[filename] = f"Error: {str(e)}"
+
+    return {"message": "Captions generated and saved", "captions": captions}
 
 class DatasetConfig(BaseModel):
     output_name: str
@@ -112,46 +191,5 @@ def get_training_status(run_id: str):
     return {"run_id": run_id, "status": "Not found or still running"}
 
 
-# Load Florence-2 model and processor
-MODEL_PATH = f"{MODELS_DIR}/florence2"
-device = "cuda" if torch.cuda.is_available() else "cpu"
-torch_dtype = torch.float16
 
-class CaptionRequest(BaseModel):
-    output_name: str  # Path to directory containing images
-    prompt: str = "Describe this image in detail."  # Default prompt
 
-@app.post("/caption-images")
-def caption_images(request: CaptionRequest):
-    dataset_dir = os.path.join(DATASETS_DIR, request.output_name)
-    if not os.path.exists(dataset_dir):
-        raise HTTPException(status_code=400, detail="Image directory not found")
-    
-    model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, torch_dtype=torch_dtype, trust_remote_code=True).to(device)
-    processor = AutoProcessor.from_pretrained(MODEL_PATH, trust_remote_code=True)
-
-    captions = {}
-
-    for filename in os.listdir(dataset_dir):
-        if filename.lower().endswith(("jpg", "jpeg", "png")):
-            image_path = os.path.join(dataset_dir, filename)
-            caption_path = os.path.splitext(image_path)[0] + ".txt"  # Save as .txt with same name
-
-            try:
-                # Load image
-                image = Image.open(image_path).convert("RGB")
-
-                # Process image and generate caption
-                inputs = processor(text=request.prompt, images=image, return_tensors="pt").to(device, torch_dtype)
-                outputs = model.generate(**inputs, max_new_tokens=1024, num_beams=3)
-                caption = processor.batch_decode(outputs, skip_special_tokens=True)[0]
-
-                # Save caption to a .txt file
-                with open(caption_path, "w") as f:
-                    f.write(caption)
-
-                captions[filename] = caption
-            except Exception as e:
-                captions[filename] = f"Error: {str(e)}"
-
-    return {"message": "Captions generated and saved", "captions": captions}
