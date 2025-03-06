@@ -61,18 +61,16 @@ docker compose up -f docker-compose.dev.yml
 - [florence2](https://huggingface.co/multimodalart/Florence-2-large-no-flash-attn)
 
 ```bash
-cd $FS_SHARE_PATH/flux_train/models
-```
-
-```bash
 export HF_TOKEN=hf_token
+export FS_SHARE_PATH=/path/to/fs
 ```
 
 ```bash
-wget --header="Authorization: Bearer $HF_TOKEN" -O flux1-dev.sft "https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/flux1-dev.safetensors"
-wget --header="Authorization: Bearer $HF_TOKEN" -O ae.sft "https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/ae.safetensors"
-wget -O clip_l.safetensors "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors"
-wget -O t5xxl_fp16.safetensors "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors"
+cd $FS_SHARE_PATH/flux_train/models && \
+wget --header="Authorization: Bearer $HF_TOKEN" -O flux1-dev.sft "https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/flux1-dev.safetensors" && \
+wget --header="Authorization: Bearer $HF_TOKEN" -O ae.sft "https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/ae.safetensors" && \
+wget -O clip_l.safetensors "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors" && \
+wget -O t5xxl_fp16.safetensors "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors" && \
 huggingface-cli download multimodalart/Florence-2-large-no-flash-attn --local-dir florence2
 ```
 
