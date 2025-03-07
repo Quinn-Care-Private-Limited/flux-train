@@ -34,7 +34,7 @@ flux_train/
 │     ├── output_name1.safetensors
 │   ├── output_name2/                     # Stores loras for output_name2
 │     ├── output_name2-0001.safetensors
-│     ├── output_name2.toml               # final lora for output_name1
+│     ├── output_name2.toml
 │── models/                               # Stores models
 │── logs/                                 # Stores logs
 
