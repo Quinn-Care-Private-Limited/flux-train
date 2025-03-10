@@ -154,7 +154,10 @@ num_repeats = {config.num_repeats}
 
 class TrainRequest(BaseModel):
     output_name: str
-    pretrained_model: str = 'flux1-dev.sft'
+    trigger_word: str
+    num_repeats: int = 10
+    resolution: int = 1024
+    pretrained_model: str = 'flux1-dev-fp8.sft'
     clip_l: str = 'clip_l.safetensors'
     t5xxl: str = 't5xxl_fp16.safetensors'
     ae: str = 'ae.sft'
@@ -170,6 +173,9 @@ def train_lora(request: TrainRequest):
     output_dir = os.path.join(OUTPUTS_DIR, request.output_name)
     os.makedirs(output_dir, exist_ok=True)
     run_id = str(uuid.uuid4())
+
+    create_dataset_config(request)
+    caption_images(request)
 
     command = f"""accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 sd-scripts/flux_train_network.py \
 --pretrained_model_name_or_path {MODELS_DIR}/{request.pretrained_model} --clip_l {MODELS_DIR}/{request.clip_l} --t5xxl {MODELS_DIR}/{request.t5xxl} \

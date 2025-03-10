@@ -2,7 +2,10 @@
 from flask import Flask, request, jsonify
 from dataclasses import dataclass, asdict
 from .manager import ServerManager
+from dotenv import load_dotenv
 import os
+
+load_dotenv()
 
 app = Flask(__name__)
 port = int(os.environ.get("PORT", "8080"))
@@ -17,7 +20,7 @@ def run_job():
     if not request.json:
         return jsonify({"error": "Invalid request, JSON payload required"}), 400
     
-    job_id = server_manager.submit_job(request.json)
+    job_id = server_manager.run_job(request.json)
     return jsonify({"job_id": job_id, "status": "submitted"})
 
 @app.route("/status/<job_id>", methods=["GET"])
