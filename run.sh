@@ -13,7 +13,7 @@ if [ -n "$FS_SHARE" ]; then
 
   # if Cloud storage type is GCS
   if [ "$CLOUD_STORAGE_TYPE" = "GCS" ]; then
-    mount -o nolock -v $FS_SHARE $FS_PATH
+    mount -o nolock $FS_SHARE $FS_PATH
   fi
 
   echo "Mounting completed."
