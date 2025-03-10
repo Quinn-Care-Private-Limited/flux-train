@@ -25,6 +25,10 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
 os.makedirs(DATASETS_DIR, exist_ok=True)
 
+
+@app.get("/health")
+def get_health():
+    return "OK"
 class DownloadRequest(BaseModel):
     urls: list[str]
     output_name: str
@@ -197,9 +201,14 @@ def get_training_status(run_id: str):
     log_file = os.path.join(LOGS_DIR, f"{run_id}_train.log")
     if os.path.exists(log_file):
         with open(log_file, "r") as f:
-            return {"run_id": run_id, "status": f.readlines()[-10:]}  # Return last 10 log lines
-    return {"run_id": run_id, "status": "Not found or still running"}
+            logs = f.readlines()[-10:]
+            if type(logs) == list:
+                logs = ''.join(logs)
 
+            finished = logs.find("Command exited successfully") > -1
+            
+            return {"run_id": run_id, "finished": finished, "logs": logs}  # Return last 10 log lines
+    return {"run_id": run_id, "logs": "Not found or still running", "finished": False}
 
 
 
