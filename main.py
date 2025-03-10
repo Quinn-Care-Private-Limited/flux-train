@@ -174,8 +174,8 @@ def train_lora(request: TrainRequest):
     os.makedirs(output_dir, exist_ok=True)
     run_id = str(uuid.uuid4())
 
-    create_dataset_config(request)
-    caption_images(request)
+    create_dataset_config({"output_name": request.output_name, "trigger_word": request.trigger_word, "num_repeats": request.num_repeats, "resolution": request.resolution})
+    caption_images({"output_name": request.output_name, "trigger_word": request.trigger_word})
 
     command = f"""accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 sd-scripts/flux_train_network.py \
 --pretrained_model_name_or_path {MODELS_DIR}/{request.pretrained_model} --clip_l {MODELS_DIR}/{request.clip_l} --t5xxl {MODELS_DIR}/{request.t5xxl} \
