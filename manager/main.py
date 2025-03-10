@@ -1,17 +1,19 @@
 # Example Flask API to interact with the server manager
 from flask import Flask, request, jsonify
 from dataclasses import dataclass, asdict
-from manager import ServerManager
+from .manager import ServerManager
+import os
 
 app = Flask(__name__)
+port = int(os.environ.get("PORT", "8080"))
 
 # Initialize the server manager with a list of server names
 
 server_manager = ServerManager()
 
-@app.route("/submit", methods=["POST"])
-def submit_job():
-    """Submit a new job to the queue"""
+@app.route("/run", methods=["POST"])
+def run_job():
+    """Run a new job to the queue"""
     if not request.json:
         return jsonify({"error": "Invalid request, JSON payload required"}), 400
     
@@ -45,6 +47,6 @@ def health_check():
 if __name__ == "__main__":
     try:
         # Start the Flask API
-        app.run(host="0.0.0.0", port=8080, debug=False)
+        app.run(host="0.0.0.0", port=port, debug=False)
     except KeyboardInterrupt:
         server_manager.shutdown()

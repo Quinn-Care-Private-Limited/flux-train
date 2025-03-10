@@ -79,8 +79,8 @@ class ServerManager:
         
         logger.info(f"Server Manager initialized with {len(SERVER_NAMES)} servers")
     
-    def submit_job(self, payload: Dict[str, Any]) -> str:
-        """Submit a new job to the queue"""
+    def run_job(self, payload: Dict[str, Any]) -> str:
+        """Run a new job to the queue"""
         job_id = f"job-{int(time.time())}-{hash(str(payload)) % 1000}"
         job = Job(job_id=job_id, payload=payload)
         
