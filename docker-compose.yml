@@ -8,3 +8,5 @@ services:
     privileged: true
     runtime: nvidia
     env_file: .env
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
