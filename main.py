@@ -174,10 +174,6 @@ async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str)
     """Handles captioning and training in the background."""
     os.makedirs(output_dir, exist_ok=True)
 
-    # Run dataset creation & captioning asynchronously
-    await asyncio.to_thread(create_dataset_config, request.output_name, request.trigger_word, request.num_repeats, request.resolution)
-    await asyncio.to_thread(caption_images, request.output_name, request.trigger_word)
-
     # Build training command
     command = f"""accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 sd-scripts/flux_train_network.py \
     --pretrained_model_name_or_path {MODELS_DIR}/{request.pretrained_model} --clip_l {MODELS_DIR}/{request.clip_l} --t5xxl {MODELS_DIR}/{request.t5xxl} \
@@ -195,8 +191,16 @@ async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str)
     log_file = os.path.join(LOGS_DIR, f"{run_id}_train.log")
 
     try:
+        # Run dataset creation & captioning asynchronously
+        print("Creating dataset config file")
+        await asyncio.to_thread(create_dataset_config, request.output_name, request.trigger_word, request.num_repeats, request.resolution)
+
+        print("Captioning images")
+        await asyncio.to_thread(caption_images, request.output_name, request.trigger_word)
+
         print("Running command:")
         print(command)
+        
         with open(log_file, "w") as f:
             subprocess.Popen(command, shell=True, stdout=f, stderr=f, text=True)
     except Exception as e:
