@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-gcloud compute instances create-with-container $1 \
+gcloud compute instances create $1 \
   --project=ai-rnd-431419 \
   --zone=us-central1-a \
   --machine-type=g2-standard-4 \
@@ -8,9 +8,5 @@ gcloud compute instances create-with-container $1 \
   --provisioning-model=SPOT \
   --accelerator=count=1,type=nvidia-l4 \
   --tags=http-server,https-server \
-  --image=projects/cos-cloud/global/images/cos-stable-117-18613-164-49 \
-  --boot-disk-size=30GB \
-  --boot-disk-type=pd-balanced \
-  --boot-disk-device-name=$1 \
-  --container-image=quinninc/flux-train:1.1.0 \
+  --create-disk=auto-delete=yes,boot=yes,device-name=$1,image=projects/cos-cloud/global/images/cos-105-17412-535-63,mode=rw,size=30,type=pd-balanced \
   --metadata-from-file user-data=cloud-config.yaml
