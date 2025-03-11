@@ -193,10 +193,10 @@ async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str)
     try:
         # Run dataset creation & captioning asynchronously
         print("Creating dataset config file")
-        await asyncio.to_thread(create_dataset_config, request.output_name, request.trigger_word, request.num_repeats, request.resolution)
+        await asyncio.to_thread(create_dataset_config, DatasetConfig(output_name =request.output_name, trigger_word=request.trigger_word, num_repeats=request.num_repeats, resolution=request.resolution))
 
         print("Captioning images")
-        await asyncio.to_thread(caption_images, request.output_name, request.trigger_word)
+        await asyncio.to_thread(caption_images, CaptionRequest(output_name =request.output_name, trigger_word=request.trigger_word))
 
         print("Running command:")
         print(command)
