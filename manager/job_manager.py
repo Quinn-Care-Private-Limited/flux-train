@@ -3,11 +3,14 @@ import time
 import requests
 import threading
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 from dataclasses import dataclass, asdict
 import persistqueue
-from persistqueue import PDict
+from sqlitedict import SqliteDict
 from google.cloud import compute_v1
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Setup logging
 logging.basicConfig(
@@ -26,8 +29,8 @@ MAX_IDLE_TIME_MINUTES = 10
 HEALTH_CHECK_INTERVAL = 30  # seconds
 JOB_STATUS_CHECK_INTERVAL = 60  # seconds
 MAX_CONCURRENT_JOBS = len(SERVER_NAMES)
-QUEUE_PATH = "job_queue"
-STATUS_DB_PATH = "job_status"
+QUEUE_PATH = "db/queue"
+JOB_STATUS_PATH = "db/status.sqlite"
 
 @dataclass
 class Server:
@@ -47,6 +50,7 @@ class Job:
     start_time: Optional[float] = None
     end_time: Optional[float] = None
     result: Optional[Dict[str, Any]] = None
+    progress: int = 0
 
 class ServerManager:
     def __init__(self):
@@ -55,8 +59,8 @@ class ServerManager:
         self.compute_client = compute_v1.InstancesClient()
         
         # Initialize persistqueue
-        self.job_queue = persistqueue.Queue(QUEUE_PATH, auto_commit=True)
-        self.job_status = PDict(STATUS_DB_PATH, 'jobs')
+        self.job_queue = persistqueue.Queue(QUEUE_PATH, autosave=True)
+        self.job_status = SqliteDict(JOB_STATUS_PATH, autocommit=True)
         
         # Start background threads
         self.stop_event = threading.Event()
@@ -76,8 +80,7 @@ class ServerManager:
         status_thread = threading.Thread(target=self._job_status_check_loop, daemon=True)
         status_thread.start()
         self.threads.append(status_thread)
-        
-        logger.info(f"Server Manager initialized with {len(SERVER_NAMES)} servers")
+        logger.info(f"Server Manager initialized with {MAX_CONCURRENT_JOBS} servers")
     
     def run_job(self, payload: Dict[str, Any]) -> str:
         """Run a new job to the queue"""
@@ -102,30 +105,25 @@ class ServerManager:
     def _start_server(self, server_name: str) -> bool:
         """Start a GCP server instance"""
         try:
-            with self.server_lock:
-                server = self.servers[server_name]
-                if server.status != "STOPPED":
-                    logger.warning(f"Cannot start server {server_name} in state {server.status}")
-                    return False
+            # with self.server_lock:
+            server = self.servers[server_name]
+            if server.status != "STOPPED":
+                logger.warning(f"Cannot start server {server_name} in state {server.status}")
+                return False
                 
-                server.status = "STARTING"
-            
+            server.status = "STARTING"
+
             logger.info(f"Starting server {server_name}")
-            
             # Start the VM instance
             operation = self.compute_client.start(
                 project=PROJECT_ID,
                 zone=ZONE,
                 instance=server_name
             )
-            
+            operation.result()
+  
             # Wait for the operation to complete
-            compute_v1.wait_for_operation(
-                operation=operation, 
-                project=PROJECT_ID,
-                zone=ZONE
-            )
-            
+
             # Get the server details to extract the IP address
             instance = self.compute_client.get(
                 project=PROJECT_ID,
@@ -135,38 +133,39 @@ class ServerManager:
             
             # Extract the external IP address
             external_ip = None
-            for network_interface in instance.network_interfaces:
-                for access_config in network_interface.access_configs:
-                    if access_config.nat_ip:
-                        external_ip = access_config.nat_ip
-                        break
-            
-            with self.server_lock:
-                server.status = "RUNNING"
-                server.ip_address = external_ip
-                server.last_activity = time.time()
+    
+            for iface in instance.network_interfaces:
+                if iface.access_configs:
+                    external_ip = iface.access_configs[0].nat_i_p  # External IP
+                    break
+                    
+
+            server.status = "RUNNING"
+            server.ip_address = external_ip
+            server.last_activity = time.time()
+
+            self._wait_for_server(server_name)
             
             logger.info(f"Server {server_name} started successfully with IP {external_ip}")
             return True
         
         except Exception as e:
             logger.error(f"Error starting server {server_name}: {str(e)}")
-            with self.server_lock:
-                server = self.servers[server_name]
-                server.status = "STOPPED"
+
+            server = self.servers[server_name]
+            server.status = "STOPPED"
             return False
     
     def _stop_server(self, server_name: str) -> bool:
         """Stop a GCP server instance"""
         try:
-            with self.server_lock:
-                server = self.servers[server_name]
-                if server.status != "RUNNING" or server.current_job_id:
-                    logger.warning(f"Cannot stop server {server_name} in state {server.status} with job {server.current_job_id}")
-                    return False
+            # with self.server_lock:
+            server = self.servers[server_name]
+            if server.status != "RUNNING" or server.current_job_id:
+                logger.warning(f"Cannot stop server {server_name} in state {server.status} with job {server.current_job_id}")
+                return False
                 
-                server.status = "STOPPING"
-            
+            server.status = "STOPPING"
             logger.info(f"Stopping server {server_name}")
             
             # Stop the VM instance
@@ -177,26 +176,34 @@ class ServerManager:
             )
             
             # Wait for the operation to complete
-            compute_v1.wait_for_operation(
-                operation=operation, 
-                project=PROJECT_ID,
-                zone=ZONE
-            )
+            operation.result()
             
-            with self.server_lock:
-                server.status = "STOPPED"
-                server.ip_address = None
-                server.last_activity = None
+            server.status = "STOPPED"
+            server.ip_address = None
+            server.last_activity = None
             
             logger.info(f"Server {server_name} stopped successfully")
             return True
         
         except Exception as e:
             logger.error(f"Error stopping server {server_name}: {str(e)}")
-            with self.server_lock:
-                server = self.servers[server_name]
-                server.status = "RUNNING"  # Revert to running state
+            server = self.servers[server_name]
+            server.status = "RUNNING"  # Revert to running state
             return False
+    
+
+    def _wait_for_server(self, server_name: str) -> bool:
+        server = self.servers[server_name]
+        while True:
+            try:
+                url = f"http://{server.ip_address}/health"
+                response = requests.get(url, timeout=2)
+                if response.status_code == 200:
+                    break
+            except Exception as e:
+                pass
+            time.sleep(5)
+    
     
     def _check_server_health(self, server_name: str) -> bool:
         """Check if a server is healthy by calling its health endpoint"""
@@ -237,7 +244,7 @@ class ServerManager:
         try:
             # Send the job payload to the server
             url = f"http://{ip_address}/train"
-            response = requests.post(url, json=job.payload, timeout=10)
+            response = requests.post(url, json=job.payload, timeout=300)
             
             if response.status_code == 200:
                 response_data = response.json()
@@ -309,20 +316,33 @@ class ServerManager:
                 status_data = response.json()
                 
                 # If job has completed or failed
-                if status_data["finished"]:
+                if "logs" in status_data and "Not found or still running" not in status_data["logs"]:
                     # Check if we can detect completion from the status
-                    job.status = "COMPLETED"
-                    job.end_time = time.time()
-                    job.result = status_data
-                    self.job_status[job_id] = asdict(job)
+                    last_lines = status_data["logs"]
+                    is_completed = any("steps: 100%" in line.lower() for line in last_lines) if isinstance(last_lines, list) else "steps: 100%" in last_lines.lower()
                     
-                    # Update server information
-                    with self.server_lock:
-                        server = self.servers[server_name]
-                        server.current_job_id = None
-                        server.last_activity = time.time()
-                    
-                    logger.info(f"Job {job_id} completed on server {server_name}")
+                    if is_completed:
+                        job.status = "COMPLETED"
+                        job.end_time = time.time()
+                        job.result = status_data
+                        job.progress = 100
+                        self.job_status[job_id] = asdict(job)
+                        
+                        # Update server information
+                        with self.server_lock:
+                            server = self.servers[server_name]
+                            server.current_job_id = None
+                            server.last_activity = time.time()
+                        
+                        logger.info(f"Job {job_id} completed on server {server_name}")
+                    else:
+                         if isinstance(last_lines, list):
+                             for line in last_lines:
+                                 if "steps:" in line.lower():
+                                     i = line.lower().find("%")
+                                     job.progress = int(line.lower()[i-4, i-1])
+                                     self.job_status[job_id] = asdict(job)
+                             
                 else:
                     # Update last activity time for the server
                     with self.server_lock:
@@ -359,7 +379,8 @@ class ServerManager:
             # Stop idle servers
             for server_name in idle_servers:
                 logger.info(f"Server {server_name} has been idle for more than {MAX_IDLE_TIME_MINUTES} minutes, stopping")
-                self._stop_server(server_name)
+                with self.server_lock:
+                    self._stop_server(server_name)
             
             # Sleep until next check
             time.sleep(HEALTH_CHECK_INTERVAL)
@@ -371,7 +392,7 @@ class ServerManager:
         while not self.stop_event.is_set():
             try:
                 # Check if we have jobs in the queue
-                if self.job_queue.size == 0:
+                if self.job_queue.empty():
                     time.sleep(1)
                     continue
                 
@@ -450,7 +471,7 @@ class ServerManager:
                 # Find all running jobs
                 running_jobs = []
                 
-                for job_id, job_data in self.job_status.items():
+                for  job_id, job_data in self.job_status.items():
                     job = Job(**job_data)
                     if job.status == "RUNNING":
                         running_jobs.append(job_id)
@@ -483,7 +504,8 @@ class ServerManager:
                            if server.status in ["RUNNING", "STARTING"]]
         
         for server_name in server_names:
-            self._stop_server(server_name)
+            with self.server_lock:
+                self._stop_server(server_name)
         
         logger.info("Server manager shutdown complete")
 

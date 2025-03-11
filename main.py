@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from transformers import AutoProcessor, AutoModelForCausalLM
 from PIL import Image
@@ -8,6 +8,7 @@ import uuid
 import os
 import torch
 import requests
+import asyncio
 
 app = FastAPI()
 
@@ -168,39 +169,48 @@ class TrainRequest(BaseModel):
     enable_bucket: bool = True
     full_bf16: bool = False
 
-@app.post("/train")
-def train_lora(request: TrainRequest):
-    output_dir = os.path.join(OUTPUTS_DIR, request.output_name)
+
+async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str):
+    """Handles captioning and training in the background."""
     os.makedirs(output_dir, exist_ok=True)
-    run_id = str(uuid.uuid4())
 
-    create_dataset_config(DatasetConfig(output_name =request.output_name, trigger_word=request.trigger_word, num_repeats=request.num_repeats, resolution=request.resolution))
-    caption_images(CaptionRequest(output_name =request.output_name, trigger_word=request.trigger_word))
+    # Run dataset creation & captioning asynchronously
+    await asyncio.to_thread(create_dataset_config, request.output_name, request.trigger_word, request.num_repeats, request.resolution)
+    await asyncio.to_thread(caption_images, request.output_name, request.trigger_word)
 
+    # Build training command
     command = f"""accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 sd-scripts/flux_train_network.py \
---pretrained_model_name_or_path {MODELS_DIR}/{request.pretrained_model} --clip_l {MODELS_DIR}/{request.clip_l} --t5xxl {MODELS_DIR}/{request.t5xxl} \
---ae {MODELS_DIR}/{request.ae} --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
---max_data_loader_n_workers 2 --seed 42 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
---network_module networks.lora_flux --network_dim {request.network_dim} --network_train_unet_only \
---optimizer_type adamw8bit --learning_rate {request.learning_rate} \
---cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base \
---highvram --max_train_epochs {request.max_train_epochs} --save_every_n_epochs {request.save_every_n_epochs} --dataset_config {DATASETS_DIR}/{request.output_name}.toml \
---output_dir {output_dir} --output_name {request.output_name} \
---timestep_sampling shift --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2 {"--enable_bucket" if request.enable_bucket else ""} {"--full_bf16" if request.full_bf16 else ""}
-"""
+    --pretrained_model_name_or_path {MODELS_DIR}/{request.pretrained_model} --clip_l {MODELS_DIR}/{request.clip_l} --t5xxl {MODELS_DIR}/{request.t5xxl} \
+    --ae {MODELS_DIR}/{request.ae} --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
+    --max_data_loader_n_workers 2 --seed 42 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
+    --network_module networks.lora_flux --network_dim {request.network_dim} --network_train_unet_only \
+    --optimizer_type adamw8bit --learning_rate {request.learning_rate} \
+    --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base \
+    --highvram --max_train_epochs {request.max_train_epochs} --save_every_n_epochs {request.save_every_n_epochs} --dataset_config {DATASETS_DIR}/{request.output_name}.toml \
+    --output_dir {output_dir} --output_name {request.output_name} \
+    --timestep_sampling shift --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2 \
+    {"--enable_bucket" if request.enable_bucket else ""} {"--full_bf16" if request.full_bf16 else ""}
+    """
+
     log_file = os.path.join(LOGS_DIR, f"{run_id}_train.log")
 
     try:
         print("Running command:")
         print(command)
         with open(log_file, "w") as f:
-            process = subprocess.Popen(command, shell=True, stdout=f, stderr=f, text=True)
-            if(process.stderr):
-                raise HTTPException(status_code=500, detail=str("Error starting training"))     
-        
-        return {"message": "Training started", "run_id": run_id}
+            subprocess.Popen(command, shell=True, stdout=f, stderr=f, text=True)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error starting training: {str(e)}")
+
+@app.post("/train")
+async def train_lora(request: TrainRequest, background_tasks: BackgroundTasks):
+    """Starts the training asynchronously and returns the response immediately."""
+    run_id = str(uuid.uuid4())
+    output_dir = os.path.join(OUTPUTS_DIR, request.output_name)
+
+    background_tasks.add_task(caption_and_train, request, run_id, output_dir)
+
+    return {"message": "Training started", "run_id": run_id}
 
 @app.get("/status/{run_id}")
 def get_training_status(run_id: str):

@@ -1,5 +1,8 @@
-flask
+fastapi
+uvicorn
+pydantic
 requests
 google-cloud-compute
 persist-queue
 dotenv
+sqlitedict
