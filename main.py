@@ -165,7 +165,7 @@ class TrainRequest(BaseModel):
     max_train_epochs: int = 10
     learning_rate: float = 8e-4
     network_dim: int = 4
-    save_every_n_epochs: int = 1
+    save_every_n_epochs: int = 0
     enable_bucket: bool = True
     full_bf16: bool = False
 
@@ -221,9 +221,24 @@ def get_training_status(run_id: str):
     log_file = os.path.join(LOGS_DIR, f"{run_id}_train.log")
     if os.path.exists(log_file):
         with open(log_file, "r") as f:
-            logs = f.readlines()[-10:]        
-            return {"run_id": run_id, "logs": logs}  # Return last 10 log lines
-    return {"run_id": run_id, "logs": "Not found or still running"}
+            progress = 0
+            logs = f.readlines()[-10:]      
+            is_completed = any("steps: 100%" in line.lower() for line in logs) if isinstance(logs, list) else False
+            is_failed = any("exit status 1" in line.lower() for line in logs) if isinstance(logs, list) else False
+
+            if is_failed:
+                  return {"run_id": run_id, "progress": progress, "error": "Failed"}
+            if is_completed:
+                progress = 100
+            else:
+                 if isinstance(logs, list):
+                    for line in logs:
+                        if "steps:" in line.lower():
+                            i = line.lower().find("%")
+                            progress = int(line.lower()[i-4, i-1])
+
+            return {"run_id": run_id, "progress": progress}
+    return {"run_id": run_id, "progress": 0, "error": "Not found"}
 
 
 
