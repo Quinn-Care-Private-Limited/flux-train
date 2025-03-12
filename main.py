@@ -235,6 +235,7 @@ def get_training_status(run_id: str):
                     for line in logs:
                         if "steps:" in line.lower():
                             i = line.lower().find("%")
+                            print(i)
                             progress = int(line.lower()[i-4, i-1])
 
             return {"run_id": run_id, "progress": progress}
