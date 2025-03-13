@@ -206,7 +206,7 @@ async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str)
     except Exception as e:
         print(f"Error starting training: {str(e)}")
 
-@app.post("/train")
+@app.post("/run")
 async def train_lora(request: TrainRequest, background_tasks: BackgroundTasks):
     """Starts the training asynchronously and returns the response immediately."""
     run_id = str(uuid.uuid4())
