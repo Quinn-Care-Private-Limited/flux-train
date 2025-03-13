@@ -5,6 +5,7 @@ services:
     container_name: flux-train
     restart: always
     network_mode: "host"
+    runtime: nvidia
     privileged: true
     env_file: .env
     environment:
