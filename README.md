@@ -203,6 +203,9 @@ This API provides a comprehensive set of endpoints for downloading images, gener
 **Request Model:** `TrainRequest`
 
 - `output_name`: Name for the trained model
+- `trigger_word`: Classification token
+- `num_repeats`: Number of times to repeat dataset (default: 10)
+- `resolution`: Image resolution (default: 1024)
 - `max_train_epochs`: No of epochs to train (optional)
 - `learning_rate`: Learning rate of the training (optional)
 - `network_dim`: Network dimension of lora (optional)
@@ -226,6 +229,9 @@ This API provides a comprehensive set of endpoints for downloading images, gener
 ```python
 {
     "output_name": "my_model",
+    "trigger_word": "my_model_name"
+    "num_repeats": 10
+    "resolution": 1024
     "max_train_epochs": 5,
     "learning_rate": 8e-4
     "pretrained_model": 'flux1-dev.sft'
@@ -308,10 +314,3 @@ MIT
 - Hugging Face Transformers
 - PyTorch
 - Accelerate
-
-```
-
-This documentation provides a comprehensive overview of the API, covering all endpoints, request/response structures, features, configuration options, and best practices. The documentation is formatted in GitHub-flavored Markdown and includes detailed explanations and example requests/responses.
-
-Would you like me to elaborate on any specific section or modify the documentation?
-```
