@@ -183,10 +183,12 @@ async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str)
     --network_module networks.lora_flux --network_dim {request.network_dim} --network_train_unet_only \
     --optimizer_type adamw8bit --learning_rate {request.learning_rate} \
     --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base \
-    --highvram --max_train_epochs {request.max_train_epochs} --save_every_n_epochs {request.save_every_n_epochs} --dataset_config {DATASETS_DIR}/{request.output_name}.toml \
+    --highvram --max_train_epochs {request.max_train_epochs} --dataset_config {DATASETS_DIR}/{request.output_name}.toml \
     --output_dir {output_dir} --output_name {request.output_name} \
     --timestep_sampling shift --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2 \
-    {"--enable_bucket" if request.enable_bucket else ""} {"--full_bf16" if request.full_bf16 else ""}
+    {f"--save_every_n_epochs {request.save_every_n_epochs}" if request.save_every_n_epochs > 0 else ""} \
+    {"--enable_bucket" if request.enable_bucket else ""} \ 
+    {"--full_bf16" if request.full_bf16 else ""}
     """
 
     log_file = os.path.join(LOGS_DIR, f"{run_id}_train.log")
@@ -245,4 +247,11 @@ def get_training_status(run_id: str):
     return {"run_id": run_id, "status": "error", "data": "Job not found"}
 
 
-
+@app.get("/logs/{run_id}")
+def get_training_logs(run_id: str):
+    log_file = os.path.join(LOGS_DIR, f"{run_id}_train.log")
+    if os.path.exists(log_file):
+        with open(log_file, "r") as f:
+            logs = f.readlines()[-10:]      
+            return {"run_id": run_id, "logs": logs}
+    return {"run_id": run_id, "logs": "Job not found"}
