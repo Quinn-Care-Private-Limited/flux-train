@@ -203,6 +203,7 @@ This API provides a comprehensive set of endpoints for downloading images, gener
 **Request Model:** `TrainRequest`
 
 - `output_name`: Name for the trained model
+- `image_urls`: URLs of training image (optional)
 - `trigger_word`: Classification token
 - `num_repeats`: Number of times to repeat dataset (default: 10)
 - `resolution`: Image resolution (default: 1024)
@@ -229,6 +230,7 @@ This API provides a comprehensive set of endpoints for downloading images, gener
 ```python
 {
     "output_name": "my_model",
+    "image_urls: ["https://url1.png", "https://url2.png"]
     "trigger_word": "my_model_name"
     "num_repeats": 10
     "resolution": 1024

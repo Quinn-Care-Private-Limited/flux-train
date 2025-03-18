@@ -155,6 +155,7 @@ num_repeats = {config.num_repeats}
 
 class TrainRequest(BaseModel):
     output_name: str
+    image_urls: list[str] = []
     trigger_word: str
     num_repeats: int = 10
     resolution: int = 1024
@@ -191,9 +192,12 @@ async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str)
     log_file = os.path.join(LOGS_DIR, f"{run_id}_train.log")
 
     try:
+        if len(request.image_urls):
+            print("Downloading images")
+            await asyncio.to_thread(download_images, DownloadRequest(output_name=request.output_name, urls=request.image_urls))
         # Run dataset creation & captioning asynchronously
         print("Creating dataset config file")
-        await asyncio.to_thread(create_dataset_config, DatasetConfig(output_name =request.output_name, trigger_word=request.trigger_word, num_repeats=request.num_repeats, resolution=request.resolution))
+        await asyncio.to_thread(create_dataset_config, DatasetConfig(output_name=request.output_name, trigger_word=request.trigger_word, num_repeats=request.num_repeats, resolution=request.resolution))
 
         print("Captioning images")
         await asyncio.to_thread(caption_images, CaptionRequest(output_name =request.output_name, trigger_word=request.trigger_word))
