@@ -194,6 +194,10 @@ async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str)
     log_file = os.path.join(LOGS_DIR, f"{run_id}_train.log")
 
     try:
+        # create log file and write to it
+        with open(log_file, "w") as f:
+            f.write(f"Training started for {request.output_name}\n")
+
         if len(request.image_urls):
             print("Downloading images")
             await asyncio.to_thread(download_images, DownloadRequest(output_name=request.output_name, urls=request.image_urls))
@@ -237,7 +241,7 @@ def get_training_status(run_id: str):
             if is_completed:
                 return {"run_id": run_id, "status": "completed", "data": {"progress": progress}}
             else:
-                 if isinstance(logs, list):
+                if isinstance(logs, list):
                     for line in logs:
                         if "steps:" in line.lower():
                             i = line.lower().find("%")
