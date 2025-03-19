@@ -185,11 +185,18 @@ async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str)
     --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base \
     --highvram --max_train_epochs {request.max_train_epochs} --dataset_config {DATASETS_DIR}/{request.output_name}.toml \
     --output_dir {output_dir} --output_name {request.output_name} \
-    --timestep_sampling shift --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2 \
-    {f"--save_every_n_epochs {request.save_every_n_epochs}" if request.save_every_n_epochs > 0 else ""} \
-    {"--enable_bucket" if request.enable_bucket else ""} \ 
-    {"--full_bf16" if request.full_bf16 else ""}
+    --timestep_sampling shift --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2
     """
+
+    if request.save_every_n_epochs > 0:
+        command += f" --save_every_n_epochs {request.save_every_n_epochs}"
+    
+    if request.enable_bucket:
+        command += " --enable_bucket"
+    
+    if request.full_bf16:
+        command += " --full_bf16"
+
 
     log_file = os.path.join(LOGS_DIR, f"{run_id}_train.log")
 
@@ -234,7 +241,7 @@ def get_training_status(run_id: str):
             progress = 0
             logs = f.readlines()[-10:]      
             is_completed = any("steps: 100%" in line.lower() for line in logs) if isinstance(logs, list) else False
-            is_failed = any("exit status 1" in line.lower() for line in logs) if isinstance(logs, list) else False
+            is_failed = any("returned non-zero exit status" in line.lower() for line in logs) if isinstance(logs, list) else False
 
             if is_failed:
                   return {"run_id": run_id, "status": "failed", "data": "Error running job, check log file"}
