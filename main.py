@@ -233,18 +233,17 @@ def get_training_status(run_id: str):
             is_failed = any("exit status 1" in line.lower() for line in logs) if isinstance(logs, list) else False
 
             if is_failed:
-                  return {"run_id": run_id, "status": "error", "data": "Error running job, check log file"}
+                  return {"run_id": run_id, "status": "failed", "data": "Error running job, check log file"}
             if is_completed:
-                progress = 100
+                return {"run_id": run_id, "status": "completed", "data": {"progress": progress}}
             else:
                  if isinstance(logs, list):
                     for line in logs:
                         if "steps:" in line.lower():
                             i = line.lower().find("%")
                             progress = int(line.lower()[i-3:i])
-
-            return {"run_id": run_id, "status": "processing", "data": {"progress": progress}}
-    return {"run_id": run_id, "status": "error", "data": "Job not found"}
+                return {"run_id": run_id, "status": "processing", "data": {"progress": progress}}
+    return {"run_id": run_id, "status": "failed", "data": "Job not found"}
 
 
 @app.get("/logs/{run_id}")
