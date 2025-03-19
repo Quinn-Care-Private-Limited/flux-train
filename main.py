@@ -252,7 +252,7 @@ def get_training_status(run_id: str):
                     for line in logs:
                         if "steps:" in line.lower():
                             i = line.lower().find("%")
-                            progress = int(line.lower()[i-3:i])
+                            progress = int(line.lower()[i-4:i])
                 return {"run_id": run_id, "status": "processing", "data": {"progress": progress}}
     return {"run_id": run_id, "status": "failed", "data": "Job not found"}
 
