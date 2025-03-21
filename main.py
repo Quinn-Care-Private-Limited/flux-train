@@ -9,6 +9,7 @@ import os
 import torch
 import requests
 import asyncio
+import gpustat
 
 app = FastAPI()
 
@@ -29,7 +30,8 @@ os.makedirs(DATASETS_DIR, exist_ok=True)
 
 @app.get("/health")
 def get_health():
-    return "OK"
+    gpu_stats = gpustat.new_query()
+    return {"status": "ok", "gpus": gpu_stats.gpus}
 class DownloadRequest(BaseModel):
     urls: list[str]
     output_name: str
