@@ -211,6 +211,8 @@ async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str)
         if len(request.image_urls):
             print("Downloading images")
             await asyncio.to_thread(download_images, DownloadRequest(output_name=request.output_name, urls=request.image_urls))
+
+
         # Run dataset creation & captioning asynchronously
         print("Creating dataset config file")
         await asyncio.to_thread(create_dataset_config, DatasetConfig(output_name=request.output_name, trigger_word=request.trigger_word, num_repeats=request.num_repeats, resolution=request.resolution))
@@ -247,7 +249,7 @@ def get_training_status(run_id: str):
             is_failed = any("returned non-zero exit status" in line.lower() for line in logs) if isinstance(logs, list) else False
 
             if is_failed:
-                  return {"run_id": run_id, "status": "failed", "data": "Error running job, check log file"}
+                  return {"run_id": run_id, "status": "failed", "data": {"error": f"Error running job, check log file {run_id}_train.log"}}
             if is_completed:
                 return {"run_id": run_id, "status": "completed", "data": {"progress": progress}}
             else:
@@ -257,7 +259,7 @@ def get_training_status(run_id: str):
                             i = line.lower().find("%")
                             progress = int(line.lower()[i-4:i])
                 return {"run_id": run_id, "status": "processing", "data": {"progress": progress}}
-    return {"run_id": run_id, "status": "failed", "data": "Job not found"}
+    return {"run_id": run_id, "status": "failed", "data": {"error": "Job not found"}}
 
 
 @app.get("/logs/{run_id}")
