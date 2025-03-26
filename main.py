@@ -188,8 +188,7 @@ async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str)
     --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base \
     --highvram --max_train_epochs {request.max_train_epochs} --dataset_config {DATASETS_DIR}/{request.output_name}.toml \
     --output_dir {output_dir} --output_name {request.output_name} \
-    --timestep_sampling shift --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2
-    """
+    --timestep_sampling shift --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2"""
 
     if request.save_every_n_epochs > 0:
         command += f" --save_every_n_epochs {request.save_every_n_epochs}"
