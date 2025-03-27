@@ -36,6 +36,7 @@ def get_health():
 class DownloadRequest(BaseModel):
     urls: list[str]
     output_name: str
+    captions: list[str] = []
 
 @app.post("/download-images")
 def download_images(request: DownloadRequest):
@@ -58,6 +59,12 @@ def download_images(request: DownloadRequest):
             # Save image
             image = Image.open(BytesIO(response.content)).convert("RGB")
             image.save(file_path, format="JPEG")  # Save as JPG format
+
+            # Save caption if provided
+            if len(request.captions):
+                caption_path = os.path.splitext(file_path)[0] + ".txt"  # Save as .txt with same name
+                with open(caption_path, "w") as f:
+                    f.write(request.captions.pop(0))
 
             saved_files[url] = file_path
         except Exception as e:
@@ -159,6 +166,8 @@ num_repeats = {config.num_repeats}
 class TrainRequest(BaseModel):
     output_name: str
     image_urls: list[str] = []
+    auto_captioning: bool = False
+    captions: list[str] = []
     trigger_word: str
     num_repeats: int = 10
     resolution: int = 1024
@@ -209,15 +218,16 @@ async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str)
 
         if len(request.image_urls):
             print("Downloading images")
-            await asyncio.to_thread(download_images, DownloadRequest(output_name=request.output_name, urls=request.image_urls))
+            await asyncio.to_thread(download_images, DownloadRequest(output_name=request.output_name, urls=request.image_urls, captions=request.captions))
 
 
         # Run dataset creation & captioning asynchronously
         print("Creating dataset config file")
         await asyncio.to_thread(create_dataset_config, DatasetConfig(output_name=request.output_name, trigger_word=request.trigger_word, num_repeats=request.num_repeats, resolution=request.resolution))
 
-        print("Captioning images")
-        await asyncio.to_thread(caption_images, CaptionRequest(output_name =request.output_name, trigger_word=request.trigger_word))
+        if request.auto_captioning:
+            print("Captioning images")
+            await asyncio.to_thread(caption_images, CaptionRequest(output_name =request.output_name, trigger_word=request.trigger_word))
 
         print("Running command:")
         print(command)
