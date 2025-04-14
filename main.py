@@ -41,7 +41,7 @@ class DownloadRequest(BaseModel):
 
 @app.post("/download-images")
 def download_images(request: DownloadRequest):
-    dataset_dir = os.path.join(DATASETS_DIR, request.output_name)
+    dataset_dir = os.path.join(DATASETS_DIR, request.output_name, f"1_{request.output_name}")
     os.makedirs(dataset_dir, exist_ok=True)
 
     saved_files = {}
@@ -269,7 +269,7 @@ train_batch_size = 1
 
         if request.auto_captioning:
             print("Captioning images")
-            await asyncio.to_thread(caption_images_in_directory, dataset_dir=dataset_dir)
+            await asyncio.to_thread(caption_images_in_directory, dataset_dir=os.path.join(dataset_dir, f"1_{request.output_name}"))
 
         print("Running command:")
         print(command)
