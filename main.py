@@ -175,6 +175,7 @@ class TrainRequest(BaseModel):
     learning_rate: float = 8e-4
     network_dim: int = 4
     enable_bucket: bool = True
+    full_bf16: bool = True
     pretrained_model: str = 'flux1-dev-fp8.sft'
     clip_l: str = 'clip_l.safetensors'
     t5xxl: str = 't5xxl_fp16.safetensors'
