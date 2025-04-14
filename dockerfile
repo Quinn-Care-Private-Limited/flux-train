@@ -23,7 +23,7 @@ RUN apt-get autoremove -y \
 
 WORKDIR /app
 
-RUN git clone https://github.com/kohya-ss/sd-scripts.git && cd sd-scripts/ && pip install --no-cache-dir -r requirements.txt
+RUN git clone -b sd3 https://github.com/kohya-ss/sd-scripts.git && cd sd-scripts/ && pip install --no-cache-dir -r requirements.txt
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
