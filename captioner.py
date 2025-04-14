@@ -44,13 +44,13 @@ def generate_caption(image_path):
     )
     return response.text.strip()
 
-def caption_images_in_directory(directory_path):
+def caption_images_in_directory(dataset_dir):
     """
     Caption all images in a directory and save the captions to a file.
     """
-    for filename in os.listdir(directory_path):
+    for filename in os.listdir(dataset_dir):
         if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
-            image_path = os.path.join(directory_path, filename)
+            image_path = os.path.join(dataset_dir, filename)
             print(f"Processing {filename}...")
             
             # Generate a caption using Google's Generative AI
