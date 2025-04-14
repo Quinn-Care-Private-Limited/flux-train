@@ -127,56 +127,22 @@ def caption_images(request: CaptionRequest):
 
     return {"message": "Captions generated and saved", "captions": captions}
 
-class DatasetConfig(BaseModel):
-    output_name: str
-    trigger_word: str
-    num_repeats: int = 1
-    resolution: int = 1024
-    batch_size: int = 1
-    pretrained_model: str = 'flux1-dev-fp8.sft'
-    clip_l: str = 'clip_l.safetensors'
-    t5xxl: str = 't5xxl_fp16.safetensors'
-    ae: str = 'ae.sft'
-
-@app.post("/create-dataset-config")
-def create_dataset_config(config: DatasetConfig):
-    config_path = os.path.join(DATASETS_DIR, f"{config.output_name}.toml")
-    
-    toml_content = f"""[general]
-shuffle_caption = {str(config.shuffle_caption).lower()}
-caption_extension = '{config.caption_extension}'
-keep_tokens = {config.keep_tokens}
-
-[[datasets]]
-resolution = {config.resolution}
-batch_size = {config.batch_size}
-keep_tokens = {config.keep_tokens}
-
-[[datasets.subsets]]
-image_dir = '{DATASETS_DIR}/{config.output_name}'
-class_tokens = '{config.trigger_word}'
-num_repeats = {config.num_repeats}
-"""
-    
-    try:
-        with open(config_path, "w") as f:
-            f.write(toml_content)
-        return {"message": "Dataset config created", "path": config_path}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 class TrainRequest(BaseModel):
     output_name: str
+    trigger_word: str
     image_urls: list[str] = []
     captions: list[str] = []
     auto_captioning: bool = False
     steps: int = 500
+    num_repeats: int = 1
+    batch_size: int = 1
     resolution: int = 1024
     learning_rate: float = 8e-4
     network_dim: int = 4
     enable_bucket: bool = True
     full_bf16: bool = True
-    pretrained_model: str = 'flux1-dev-fp8.sft'
+    pretrained_model: str = 'flux1-dev.sft'
     clip_l: str = 'clip_l.safetensors'
     t5xxl: str = 't5xxl_fp16.safetensors'
     ae: str = 'ae.sft'
@@ -189,70 +155,44 @@ async def caption_and_train(request: TrainRequest, run_id: str):
     os.makedirs(output_dir, exist_ok=True)
 
     config_path = os.path.join(output_dir, f"{request.output_name}.toml")
-    toml_content = f"""cache_latents = true
-pretrained_model_name_or_path = "{MODELS_DIR}/{request.pretrained_model}"
-ae = "{MODELS_DIR}/{request.ae}"
-clip_l = "{MODELS_DIR}/{request.clip_l}"
-t5xxl = "{MODELS_DIR}/{request.t5xxl}"
-logging_dir = "{output_dir}/logs"
-output_dir = "{output_dir}"
-train_data_dir = "{dataset_dir}"
-resolution = "{request.resolution},{request.resolution}"
-network_alpha = {request.network_dim}
-network_dim = {request.network_dim}
-max_train_steps = {request.steps}
-full_bf16 = {str(request.full_bf16).lower()}
-unet_lr = {request.learning_rate}
-output_name = "{request.output_name}"
-mixed_precision = "bf16"
-enable_bucket = true
-num_repeats = 1
-epoch = 100
-save_model_as = "safetensors"
-save_precision = "fp16"
-apply_t5_attn_mask = true
-bucket_no_upscale = true
-bucket_reso_steps = 64
-cache_latents_to_disk = true
-cache_text_encoder_outputs = true
-cache_text_encoder_outputs_to_disk = true
-caption_extension = ".txt"
-discrete_flow_shift = 3.0
-dynamo_backend = "no"
-gradient_accumulation_steps = 1
-gradient_checkpointing = true
-guidance_scale = 1.0
-huber_c = 0.1
-huber_scale = 1
-huber_schedule = "snr"
-loss_type = "l2"
-lr_scheduler = "cosine"
-lr_scheduler_args = []
-lr_scheduler_num_cycles = 1
-lr_scheduler_power = 1
-max_bucket_reso = 2048
-max_data_loader_n_workers = 0
-max_grad_norm = 1
-max_timestep = 1000
-min_bucket_reso = 256
-model_prediction_type = "raw"
-network_args = [ "train_double_block_indices=all", "train_single_block_indices=all",]
-network_module = "networks.lora_flux"
-network_train_unet_only = true
-noise_offset = 0.05
-noise_offset_type = "Original"
-optimizer_args = [ "scale_parameter=False", "relative_step=False", "warmup_init=False", "weight_decay=0.01",]
-optimizer_type = "Adafactor"
-prior_loss_weight = 1
-sdpa = true
-t5xxl_max_token_length = 512
-text_encoder_lr = []
-timestep_sampling = "flux_shift"
-train_batch_size = 1
+
+    toml_content = f"""[general]
+shuffle_caption = false
+caption_extension = '.txt'
+keep_tokens = 1
+
+[[datasets]]
+resolution = {request.resolution}
+batch_size = {request.batch_size}
+keep_tokens = 1
+
+[[datasets.subsets]]
+image_dir = '{dataset_dir}'
+class_tokens = '{request.trigger_word}'
+num_repeats = {request.num_repeats}
 """
 
     # Build training command
-    command = f"""accelerate launch --dynamo_backend no --dynamo_mode default --mixed_precision bf16 --num_processes 1 --num_machines 1 --num_cpu_threads_per_process 2 sd-scripts/train_network.py --config_file {config_path}"""
+    command = f"""accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 2 sd-scripts/flux_train_network.py \
+--pretrained_model_name_or_path {MODELS_DIR}/{request.pretrained_model} --clip_l {MODELS_DIR}/{request.clip_l} --t5xxl {MODELS_DIR}/{request.t5xxl} --ae {MODELS_DIR}/{request.ae} \
+--cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
+--max_data_loader_n_workers 2 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
+--network_module networks.lora_flux --network_dim {request.network_dim} --network_train_unet_only \
+--optimizer_type adamw8bit --unet_lr {request.learning_rate} \
+--cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk \
+--highvram --max_train_steps {request.steps} --dataset_config {config_path} \
+--output_dir {output_dir} --output_name {request.output_name} \
+--timestep_sampling flux_shift --discrete_flow_shift 3.0 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2 --lr_scheduler_type cosine \ 
+--optimizer_type Adafactor --optimizer_args 'scale_parameter=False,relative_step=False,warmup_init=False,weight_decay=0.01' \
+--gradient_checkpointing --gradient_accumulation_steps 1 --bucket_no_upscale
+"""
+    
+    if request.enable_bucket:
+        command += " --enable_bucket"
+    
+    if request.full_bf16:
+        command += " --full_bf16"
+
     log_file = os.path.join(LOGS_DIR, f"{run_id}_train.log")
 
     try:
@@ -269,7 +209,7 @@ train_batch_size = 1
 
         if request.auto_captioning:
             print("Captioning images")
-            await asyncio.to_thread(caption_images_in_directory, dataset_dir=os.path.join(dataset_dir, f"1_{request.output_name}"))
+            await asyncio.to_thread(caption_images_in_directory, dataset_dir=dataset_dir, trigger_word=request.trigger_word)
 
         print("Running command:")
         print(command)

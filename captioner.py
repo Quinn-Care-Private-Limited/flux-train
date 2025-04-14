@@ -44,7 +44,7 @@ def generate_caption(image_path):
     )
     return response.text.strip()
 
-def caption_images_in_directory(dataset_dir):
+def caption_images_in_directory(dataset_dir, trigger_word):
     """
     Caption all images in a directory and save the captions to a file.
     """
@@ -57,4 +57,5 @@ def caption_images_in_directory(dataset_dir):
             caption = generate_caption(image_path)
             caption_file = image_path.split(".")[0] + ".txt"
             with open(caption_file, "w") as f:
+                caption = trigger_word + ", " + caption
                 f.write(caption)
