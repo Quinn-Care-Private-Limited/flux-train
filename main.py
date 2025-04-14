@@ -252,7 +252,7 @@ train_batch_size = 1
 """
 
     # Build training command
-    command = f"""accelerate launch --dynamo_backend no --dynamo_mode default --mixed_precision bf16 --num_processes 1 --num_machines 1 --num_cpu_threads_per_process 2 sd-scripts/flux_train_network.py --config_file {config_path}"""
+    command = f"""accelerate launch --dynamo_backend no --dynamo_mode default --mixed_precision bf16 --num_processes 1 --num_machines 1 --num_cpu_threads_per_process 2 sd-scripts/train_network.py --config_file {config_path}"""
     log_file = os.path.join(LOGS_DIR, f"{run_id}_train.log")
 
     try:
