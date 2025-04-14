@@ -182,7 +182,7 @@ num_repeats = {request.num_repeats}
 --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk \
 --max_train_steps {request.steps} --dataset_config {config_path} \
 --output_dir {output_dir} --output_name {request.output_name} \
---huber_schedule snr --timestep_sampling flux_shift --discrete_flow_shift 3.0 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2 --lr_scheduler_type cosine  \
+--huber_schedule snr --timestep_sampling flux_shift --discrete_flow_shift 3.0 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2 --lr_scheduler cosine  \
 --optimizer_type Adafactor --optimizer_args "scale_parameter=False" "relative_step=False" "warmup_init=False" "weight_decay=0.01" \
 --gradient_checkpointing --gradient_accumulation_steps 1 --bucket_no_upscale"""
     
