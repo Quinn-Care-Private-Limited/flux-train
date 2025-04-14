@@ -6,3 +6,5 @@ opencv-python-headless
 transformers
 timm
 gpustat
+google-genai
+pillow

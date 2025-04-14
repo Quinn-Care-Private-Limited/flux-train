@@ -12,6 +12,7 @@ import asyncio
 import gpustat
 import psutil
 
+from captioner import caption_images_in_directory
 app = FastAPI()
 
 FS_PATH = os.getenv("FS_PATH")
@@ -129,12 +130,13 @@ def caption_images(request: CaptionRequest):
 class DatasetConfig(BaseModel):
     output_name: str
     trigger_word: str
-    num_repeats: int = 10
+    num_repeats: int = 1
     resolution: int = 1024
     batch_size: int = 1
-    shuffle_caption: bool = False
-    caption_extension: str = ".txt"
-    keep_tokens: int = 1
+    pretrained_model: str = 'flux1-dev-fp8.sft'
+    clip_l: str = 'clip_l.safetensors'
+    t5xxl: str = 't5xxl_fp16.safetensors'
+    ae: str = 'ae.sft'
 
 @app.post("/create-dataset-config")
 def create_dataset_config(config: DatasetConfig):
@@ -166,49 +168,90 @@ num_repeats = {config.num_repeats}
 class TrainRequest(BaseModel):
     output_name: str
     image_urls: list[str] = []
-    auto_captioning: bool = False
     captions: list[str] = []
-    trigger_word: str
-    num_repeats: int = 10
+    auto_captioning: bool = False
+    steps: int = 500
     resolution: int = 1024
+    learning_rate: float = 8e-4
+    network_dim: int = 4
+    enable_bucket: bool = True
     pretrained_model: str = 'flux1-dev-fp8.sft'
     clip_l: str = 'clip_l.safetensors'
     t5xxl: str = 't5xxl_fp16.safetensors'
     ae: str = 'ae.sft'
-    max_train_epochs: int = 10
-    learning_rate: float = 8e-4
-    network_dim: int = 4
-    save_every_n_epochs: int = 0
-    enable_bucket: bool = True
-    full_bf16: bool = False
 
 
-async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str):
+async def caption_and_train(request: TrainRequest, run_id: str):
     """Handles captioning and training in the background."""
+    dataset_dir = os.path.join(DATASETS_DIR, request.output_name)
+    output_dir = os.path.join(OUTPUTS_DIR, request.output_name)
     os.makedirs(output_dir, exist_ok=True)
 
+    config_path = os.path.join(output_dir, f"{request.output_name}.toml")
+    toml_content = f"""cache_latents = true
+pretrained_model_name_or_path = "{MODELS_DIR}/{request.pretrained_model}"
+ae = "{MODELS_DIR}/{request.ae}"
+clip_l = "{MODELS_DIR}/{request.clip_l}"
+t5xxl = "{MODELS_DIR}/{request.t5xxl}"
+logging_dir = "{output_dir}/logs"
+output_dir = "{output_dir}"
+train_data_dir = "{dataset_dir}"
+resolution = "{request.resolution},{request.resolution}"
+network_alpha = {request.network_dim}
+network_dim = {request.network_dim}
+max_train_steps = {request.steps}
+full_bf16 = {str(request.full_bf16).lower()}
+unet_lr = {request.learning_rate}
+mixed_precision = "bf16"
+enable_bucket = true
+output_name = "amante"
+num_repeats = 1
+epoch = 100
+save_model_as = "safetensors"
+save_precision = "fp16"
+apply_t5_attn_mask = true
+bucket_no_upscale = true
+bucket_reso_steps = 64
+cache_latents_to_disk = true
+cache_text_encoder_outputs = true
+cache_text_encoder_outputs_to_disk = true
+caption_extension = ".txt"
+discrete_flow_shift = 3.0
+dynamo_backend = "no"
+gradient_accumulation_steps = 1
+gradient_checkpointing = true
+guidance_scale = 1.0
+huber_c = 0.1
+huber_scale = 1
+huber_schedule = "snr"
+loss_type = "l2"
+lr_scheduler = "cosine"
+lr_scheduler_args = []
+lr_scheduler_num_cycles = 1
+lr_scheduler_power = 1
+max_bucket_reso = 2048
+max_data_loader_n_workers = 0
+max_grad_norm = 1
+max_timestep = 1000
+min_bucket_reso = 256
+model_prediction_type = "raw"
+network_args = [ "train_double_block_indices=all", "train_single_block_indices=all",]
+network_module = "networks.lora_flux"
+network_train_unet_only = true
+noise_offset = 0.05
+noise_offset_type = "Original"
+optimizer_args = [ "scale_parameter=False", "relative_step=False", "warmup_init=False", "weight_decay=0.01",]
+optimizer_type = "Adafactor"
+prior_loss_weight = 1
+sdpa = true
+t5xxl_max_token_length = 512
+text_encoder_lr = []
+timestep_sampling = "flux_shift"
+train_batch_size = 1
+"""
+
     # Build training command
-    command = f"""accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 sd-scripts/flux_train_network.py \
-    --pretrained_model_name_or_path {MODELS_DIR}/{request.pretrained_model} --clip_l {MODELS_DIR}/{request.clip_l} --t5xxl {MODELS_DIR}/{request.t5xxl} \
-    --ae {MODELS_DIR}/{request.ae} --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
-    --max_data_loader_n_workers 2 --seed 42 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
-    --network_module networks.lora_flux --network_dim {request.network_dim} --network_train_unet_only \
-    --optimizer_type adamw8bit --learning_rate {request.learning_rate} \
-    --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base \
-    --highvram --max_train_epochs {request.max_train_epochs} --dataset_config {DATASETS_DIR}/{request.output_name}.toml \
-    --output_dir {output_dir} --output_name {request.output_name} \
-    --timestep_sampling shift --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2"""
-
-    if request.save_every_n_epochs > 0:
-        command += f" --save_every_n_epochs {request.save_every_n_epochs}"
-    
-    if request.enable_bucket:
-        command += " --enable_bucket"
-    
-    if request.full_bf16:
-        command += " --full_bf16"
-
-
+    command = f"""accelerate launch --dynamo_backend no --dynamo_mode default --mixed_precision bf16 --num_processes 1 --num_machines 1 --num_cpu_threads_per_process 2 sd-scripts/flux_train_network.p --config_file {config_path}"""
     log_file = os.path.join(LOGS_DIR, f"{run_id}_train.log")
 
     try:
@@ -216,18 +259,16 @@ async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str)
         with open(log_file, "w") as f:
             f.write(f"Training started for {request.output_name}\n")
 
+        with open(config_path, "w") as f:
+            f.write(toml_content)
+
         if len(request.image_urls):
             print("Downloading images")
             await asyncio.to_thread(download_images, DownloadRequest(output_name=request.output_name, urls=request.image_urls, captions=request.captions))
 
-
-        # Run dataset creation & captioning asynchronously
-        print("Creating dataset config file")
-        await asyncio.to_thread(create_dataset_config, DatasetConfig(output_name=request.output_name, trigger_word=request.trigger_word, num_repeats=request.num_repeats, resolution=request.resolution))
-
         if request.auto_captioning:
             print("Captioning images")
-            await asyncio.to_thread(caption_images, CaptionRequest(output_name =request.output_name, trigger_word=request.trigger_word))
+            await asyncio.to_thread(caption_images_in_directory, dataset_dir=dataset_dir)
 
         print("Running command:")
         print(command)
@@ -241,9 +282,7 @@ async def caption_and_train(request: TrainRequest, run_id: str, output_dir: str)
 async def train_lora(request: TrainRequest, background_tasks: BackgroundTasks):
     """Starts the training asynchronously and returns the response immediately."""
     run_id = str(uuid.uuid4())
-    output_dir = os.path.join(OUTPUTS_DIR, request.output_name)
-
-    background_tasks.add_task(caption_and_train, request, run_id, output_dir)
+    background_tasks.add_task(caption_and_train, request, run_id)
 
     return {"message": "Training started", "run_id": run_id}
 
