@@ -29,7 +29,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install torch==2.4.0 torchvision==0.19.0 --index-url https://download.pytorch.org/whl/cu124
 
-COPY main.py run.sh ./
+COPY main.py captioner.py run.sh ./
 RUN chmod +x run.sh
 
 # Start FastAPI server
