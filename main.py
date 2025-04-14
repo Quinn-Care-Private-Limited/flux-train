@@ -173,16 +173,16 @@ num_repeats = {request.num_repeats}
 """
 
     # Build training command
-    command = f"""accelerate launch --num_processes 1 --num_machines 1 --dynamo_backend no sd-scripts/train_network.py \
+    command = f"""accelerate launch --num_processes 1 --num_machines 1 --dynamo_backend no --mixed_precision bf16 sd-scripts/train_network.py \
 --pretrained_model_name_or_path {MODELS_DIR}/{request.pretrained_model} --clip_l {MODELS_DIR}/{request.clip_l} --t5xxl {MODELS_DIR}/{request.t5xxl} --ae {MODELS_DIR}/{request.ae} \
 --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
---max_data_loader_n_workers 2 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
+--max_data_loader_n_workers 2 --gradient_checkpointing --save_precision bf16 \
 --network_module networks.lora_flux --network_dim {request.network_dim} --network_train_unet_only \
 --optimizer_type adamw8bit --unet_lr {request.learning_rate} \
 --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk \
 --highvram --max_train_steps {request.steps} --dataset_config {config_path} \
 --output_dir {output_dir} --output_name {request.output_name} \
---timestep_sampling flux_shift --discrete_flow_shift 3.0 --model_prediction_type raw --guidance_scale 1.0 --loss_type l2 --lr_scheduler_type cosine  \
+--loss_type l2 --lr_scheduler_type cosine --huber_schedule snr  \
 --optimizer_type Adafactor --optimizer_args 'scale_parameter=False,relative_step=False,warmup_init=False,weight_decay=0.01' \
 --gradient_checkpointing --gradient_accumulation_steps 1 --bucket_no_upscale"""
     
