@@ -173,7 +173,7 @@ num_repeats = {request.num_repeats}
 """
 
     # Build training command
-    command = f"""accelerate launch --mixed_precision bf16 sd-scripts/flux_train_network.py \
+    command = f"""accelerate launch --num_processes 1 --num_machines 1 --dynamo_backend no --mixed_precision bf16 sd-scripts/flux_train_network.py \
 --pretrained_model_name_or_path {MODELS_DIR}/{request.pretrained_model} --clip_l {MODELS_DIR}/{request.clip_l} --t5xxl {MODELS_DIR}/{request.t5xxl} --ae {MODELS_DIR}/{request.ae} \
 --cache_latents_to_disk --save_model_as safetensors --sdpa --max_data_loader_n_workers 2 --persistent_data_loader_workers \
 --max_data_loader_n_workers 2 --gradient_checkpointing --save_precision bf16 \
