@@ -1,7 +1,7 @@
 services:
   flux-train:
     build: ./
-    image: quinninc/flux-train:2.0.1
+    image: quinninc/flux-train:2.1.0
     container_name: flux-train
     restart: always
     network_mode: "host"
